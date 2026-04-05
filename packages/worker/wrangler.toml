@@ -1,0 +1,30 @@
+name = "twitter-agent-worker"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# ── Cron Triggers ──────────────────────────────────────────────────────────────
+# These cron expressions MUST match cronSchedules in generated/config.json.
+# The wizard generates both in sync. Edit both together if you change schedules.
+[triggers]
+crons = [
+  "* * * * *",     # mention polling (every 1 min, loops 4 times for ~15s polling)
+  "0 */6 * * *",   # memory consolidation (every 6 hours)
+  "30 12 * * *",   # spontaneous tweet (daily trigger; agent enforces n-day cooldown)
+  "0 * * * *",     # timeline engagement (every 1 hour)
+  "0 3 * * *",     # nightly evolution (3:00 AM)
+]
+
+# ── KV Namespaces ──────────────────────────────────────────────────────────────
+# Create with: npx wrangler kv namespace create AGENT_STATE
+# Then replace the placeholder id below with the output id.
+[[kv_namespaces]]
+binding = "AGENT_STATE"
+id = "PLACEHOLDER_REPLACE_WITH_YOUR_KV_ID"
+
+# ── Secrets (set via `npx wrangler secret put <NAME>`) ────────────────────────
+# X_CLIENT_ID        — X App OAuth 2.0 Client ID
+# X_CLIENT_SECRET    — X App OAuth 2.0 Client Secret
+# X_REFRESH_TOKEN    — Long-lived refresh token (from one-time OAuth auth flow)
+# GEMINI_API_KEY     — Google Gemini API key
+# ADMIN_SECRET       — Secret header value for protected admin dashboard

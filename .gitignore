@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.env
+*.local
+
+# Wrangler / Cloudflare
+.wrangler/
+
+# TypeScript build artifacts
+*.js.map
+*.d.ts.map
