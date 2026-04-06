@@ -876,15 +876,19 @@ import Layout from "../layouts/Layout.astro";
           `<div style="color:var(--error)">❌ ${r.error}</div>`;
         return;
       }
+      const isSkip = (t) => t && t.trim().toLowerCase() === '<skip>';
+      const renderContent = (t) => isSkip(t)
+        ? `<span style="display:inline-block;padding:2px 10px;border-radius:6px;background:rgba(255,255,255,0.06);color:var(--text-muted);font-size:0.85rem;letter-spacing:0.05em;">🚫 <span class="lang-zh">已读不回</span><span class="lang-en">Skip</span></span>`
+        : t;
       let h = "";
       if (r.tweet) {
         h += `<div style="margin-top:16px;background:var(--input-bg);padding:12px;border-radius:12px;">`;
-        h += `<div style="font-size:12px;color:var(--primary)"><span class="lang-zh">✏️ 自发推文</span><span class="lang-en">✏️ Spontaneous Tweet</span></div><div style="margin-top:8px">${r.tweet}</div>`;
+        h += `<div style="font-size:12px;color:var(--primary)"><span class="lang-zh">✏️ 自发推文</span><span class="lang-en">✏️ Spontaneous Tweet</span></div><div style="margin-top:8px">${renderContent(r.tweet)}</div>`;
         h += `</div>`;
       }
       if (r.reply) {
         h += `<div style="margin-top:16px;background:var(--input-bg);padding:12px;border-radius:12px;">`;
-        h += `<div style="font-size:12px;color:var(--primary)"><span class="lang-zh">💬 互动回复</span><span class="lang-en">💬 Interactive Reply</span></div><div style="font-size:13px;color:var(--text-muted)">Context: [@stranger] 说了: 这你们华人都是一个怎么想的？</div><div style="margin-top:8px">${r.reply}</div>`;
+        h += `<div style="font-size:12px;color:var(--primary)"><span class="lang-zh">💬 互动回复</span><span class="lang-en">💬 Interactive Reply</span></div><div style="font-size:13px;color:var(--text-muted)">Context: [@stranger] 说了: 这你们华人都是一个怎么想的？</div><div style="margin-top:8px">${renderContent(r.reply)}</div>`;
         h += `</div>`;
       }
       $("sampleRes").innerHTML = h;
