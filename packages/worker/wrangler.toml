@@ -1,4 +1,4 @@
-name = "another-x-agent"
+name = "jellyfish"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
@@ -37,6 +37,6 @@ database_id = "13e065a3-b527-4613-8e8f-1ec7e1933d3f"
 # X_CLIENT_SECRET    — X App OAuth 2.0 Client Secret (Platform-wide)
 # ADMIN_SECRET       — Secret header value for protected admin dashboard
 # CF_ACCOUNT_ID      — Cloudflare Account ID (visible in Cloudflare dashboard)
-# CF_GATEWAY_NAME    — Cloudflare AI Gateway Name (e.g. "another-x-agent-gateway")
+# CF_GATEWAY_NAME    — Cloudflare AI Gateway Name (e.g. "jellyfish-gateway")
 # CF_AIG_TOKEN       — Cloudflare AI Gateway Token (generated in Gateway → Auth)
 # GEMINI_MODEL       — (optional) Default model, e.g. gemini-2.5-pro-preview-03-25

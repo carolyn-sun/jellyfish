@@ -1,5 +1,5 @@
 const KEY = "AIzaSyC21XaJPfbRwwHaOZ_7nN79EWmcNIYFuM0";
-const url = "https://gateway.ai.cloudflare.com/v1/6619e512bf454ca21f69bd1663737deb/another-x-agent-gateway/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent";
+const url = "https://gateway.ai.cloudflare.com/v1/6619e512bf454ca21f69bd1663737deb/jellyfish-gateway/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent";
 
 const res = await fetch(url, {
   method: 'POST',

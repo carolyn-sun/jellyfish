@@ -2,7 +2,7 @@
 import Layout from "../layouts/Layout.astro";
 ---
 
-<Layout title="Another X Agent Setup">
+<Layout title="Jellyfish: Another Agent">
   <div id="stepNav" class="step-nav"></div>
 
   <!-- Step 0: Mode Selection -->
@@ -230,23 +230,7 @@ import Layout from "../layouts/Layout.astro";
       />
     </div>
 
-    <label
-      ><span class="lang-zh">源账号（逗号分隔，不含 @）</span><span
-        class="lang-en">Source Accounts (comma separated, no @)</span
-      ></label
-    >
-    <input
-      type="text"
-      id="sourceAccounts"
-      data-ph-zh="例: elonmusk"
-      data-ph-en="Example: elonmusk"
-      placeholder="例: elonmusk"
-    />
-    <p class="hint">
-      <span class="lang-zh">将抓取这些账号的推文用于人格蒸馏。</span><span
-        class="lang-en"
-        >Will fetch tweets from these accounts for persona distillation.</span>
-    </p>
+    
 
     <div id="err2" class="alert alert-error"></div>
     <div class="flex justify-between mt-8">
@@ -277,6 +261,24 @@ import Layout from "../layouts/Layout.astro";
       ><span class="lang-en"
         >Will fetch up to 100 recent tweets and extract writing style.</span>
     </div>
+
+<label
+      ><span class="lang-zh">源账号（逗号分隔，不含 @）</span><span
+        class="lang-en">Source Accounts (comma separated, no @)</span
+      ></label
+    >
+    <input
+      type="text"
+      id="sourceAccounts"
+      data-ph-zh="例: elonmusk"
+      data-ph-en="Example: elonmusk"
+      placeholder="例: elonmusk"
+    />
+    <p class="hint">
+      <span class="lang-zh">将抓取这些账号的推文用于人格蒸馏。</span><span
+        class="lang-en"
+        >Will fetch tweets from these accounts for persona distillation.</span>
+    </p>
 
     <label
       ><span class="lang-zh">配置生成语言</span><span class="lang-en"
@@ -334,12 +336,19 @@ import Layout from "../layouts/Layout.astro";
       placeholder="蒸馏出的 persona_skill 会显示在这里，您可自由微调补充。可以跳过蒸馏，自己手写！"
     ></textarea>
 
-    <div id="err2" class="alert alert-error"></div>
-    
+    <div id="err3" class="alert alert-error"></div>
+
+    <div class="section-title mt-8"><span class="lang-zh">🎲 验证模型效果</span><span class="lang-en">🎲 Verify Model Output</span></div>
+    <div class="subtitle" style="margin-bottom:8px">
+      <span class="lang-zh">生成演练样本以调优 Agent 的发言。如果不满意，可修改上方的系统提示词后重新生成。</span><span class="lang-en">Generate practice samples to test current persona. Modify prompt above if unsatisfied.</span>
+    </div>
+    <button class="btn btn-ghost w-full" id="genSampleBtn"><span class="lang-zh">🎲 生成测试样本</span><span class="lang-en">🎲 Generate Test Samples</span></button>
+    <div id="sampleLoading" style="display:none" class="mt-4"><div class="dot-pulse"></div><span><span class="lang-zh">正在思考……</span><span class="lang-en">Thinking...</span></span></div>
+    <div id="sampleRes" class="sample-box"></div>
     
     <div class="flex justify-between mt-8">
       <button class="btn btn-ghost btn-back" data-step="2"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button>
-      <button class="btn btn-primary btn-next" data-step="4"><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span></button>
+      <button class="btn btn-primary btn-next" id="s3next" data-step="4"><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span></button>
     </div>
   </div>
 
@@ -533,7 +542,6 @@ import Layout from "../layouts/Layout.astro";
     ];
     const STEPS_DISTILL = [
       '<span class="lang-zh">授权</span><span class="lang-en">Auth</span>',
-      '<span class="lang-zh">目标</span><span class="lang-en">Target</span>',
       '<span class="lang-zh">蒸馏</span><span class="lang-en">Distill</span>',
     ];
 
@@ -545,12 +553,17 @@ import Layout from "../layouts/Layout.astro";
       const STEPS = S.mode === "distill" ? STEPS_DISTILL : STEPS_CREATE;
       const nav = $("stepNav");
       nav.innerHTML = "";
+      
+      const dotIndex = S.mode === "distill" ? (S.step === 3 ? 1 : 0) : S.step - 1;
+      
       STEPS.forEach((lbl, i) => {
-        const n = i + 1;
         const div = document.createElement("div");
+        const isDone = i < dotIndex;
+        const isActive = i === dotIndex;
+        const num = i + 1;
         div.className =
-          "step-dot" + (n < S.step ? " done" : n === S.step ? " active" : "");
-        div.innerHTML = `<div class="num">${n < S.step ? "✓" : n}</div><div class="lbl">${lbl}</div>`;
+          "step-dot" + (isDone ? " done" : isActive ? " active" : "");
+        div.innerHTML = `<div class="num">${isDone ? "✓" : num}</div><div class="lbl">${lbl}</div>`;
         nav.appendChild(div);
       });
     }
@@ -571,19 +584,10 @@ import Layout from "../layouts/Layout.astro";
       if (n > S.step && !validate(S.step)) return;
       if (S.mode === "distill" && n > 3) return; // Prevent forward nav in distill mode
 
-      if (n === 2) {
-        if (S.mode === "distill") {
-          $("identitySection").style.display = "none";
-          $("s2Title").innerHTML =
-            '<h2><span class="lang-zh">🎯 目标源账号</span><span class="lang-en">🎯 Target Source Accounts</span></h2>';
-          $("s2Subtitle").innerHTML =
-            '<span class="lang-zh">在此输入需要拉取推文进行蒸馏分析的源账号。</span><span class="lang-en">Enter the source accounts to pull and distill.</span>';
-        } else {
-          $("identitySection").style.display = "block";
-          $("s2Title").innerHTML =
-            '<h2><span class="lang-zh">🎭 Agent 身份</span><span class="lang-en">🎭 Agent Identity</span></h2>';
-          $("s2Subtitle").innerHTML =
-            '<span class="lang-zh">核心身份信息已与您的授权 X 账号强绑定。</span><span class="lang-en">Agent core identity is securely bound.</span>';
+      if (S.mode === "distill") {
+        if (n === 2) {
+          if (S.step === 1) n = 3; // Forward skip s2
+          else if (S.step === 3) n = 1; // Backward skip s2
         }
       }
 
@@ -610,15 +614,7 @@ import Layout from "../layouts/Layout.astro";
         );
         return false;
       }
-      if (step === 2) {
-        if (!$("sourceAccounts").value.trim()) {
-          showErr(
-            "err2",
-            '<span class="lang-zh">请输入至少一个源账号</span><span class="lang-en">Please enter at least one source account</span>',
-          );
-          return false;
-        }
-      }
+      
       if (step === 3 && !$("skillText").value.trim()) {
         showErr(
           "err3",
@@ -631,12 +627,12 @@ import Layout from "../layouts/Layout.astro";
       if (step === 2) {
         S.agentName = $("agentName").value.trim();
         S.agentHandle = $("agentHandle").value.trim();
+      }
+      if (step === 3) {
         S.sourceAccounts = $("sourceAccounts")
           .value.split(",")
           .map((s) => s.trim())
           .filter(Boolean);
-      }
-      if (step === 3) {
         S.skill = $("skillText").value.trim();
       }
       if (step === 4) {
@@ -792,9 +788,13 @@ import Layout from "../layouts/Layout.astro";
 
     // Distill
     $("startDistillBtn").addEventListener("click", async () => {
+      if (!$("sourceAccounts").value.trim()) {
+        showErr("err3", "请输入至少一个源账号 / Please enter at least one source account");
+        return;
+      }
       $("distillLoading").style.display = "flex";
       $("startDistillBtn").disabled = true;
-      clearErr("err4");
+      clearErr("err3");
       const payload = {
         sourceAccounts: $("sourceAccounts")
           .value.split(",")
@@ -807,7 +807,7 @@ import Layout from "../layouts/Layout.astro";
       $("distillLoading").style.display = "none";
       $("startDistillBtn").disabled = false;
       if (r.error) {
-        showErr("err4", r.error);
+        showErr("err3", r.error);
         return;
       }
 
