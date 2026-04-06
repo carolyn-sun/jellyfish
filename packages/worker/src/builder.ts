@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { fetchGemini } from './gemini.ts';
 
 async function xGet(urlPath: string, accessToken: string): Promise<unknown> {
   const res = await fetch(`https://api.twitter.com/2${urlPath}`, {
@@ -35,7 +35,6 @@ export async function distillSkillFromTweets(
   promptLang: string = 'zh',
   baseUrl?: string
 ): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey: geminiApiKey, httpOptions: baseUrl ? { baseUrl } : undefined });
   const blocks = Object.entries(tweetsByAccount)
     .map(([u, tweets]) => `### @${u}\n${tweets.map((t, i) => `${i + 1}. ${t}`).join('\n')}`)
     .join('\n\n');
@@ -54,40 +53,37 @@ IMPORTANT: You MUST generate the final persona document ENTIRELY in ${promptLang
 
 Generate the persona.skill document now:`;
 
-  const res = await ai.models.generateContent({
-    model: geminiModel,
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    config: { maxOutputTokens: 4000, temperature: 0.4 },
-  });
-  const text = res.text?.trim();
-  if (!text) throw new Error('Gemini returned empty response');
-  return text;
+  return fetchGemini(
+    geminiModel,
+    [{ role: 'user', parts: [{ text: prompt }] }],
+    undefined,
+    { maxOutputTokens: 4000, temperature: 0.4 },
+    geminiApiKey,
+    baseUrl
+  );
 }
 
 export async function genSample(skill: string, geminiApiKey: string, geminiModel: string, baseUrl?: string) {
-  const ai = new GoogleGenAI({ apiKey: geminiApiKey, httpOptions: baseUrl ? { baseUrl } : undefined });
-  const cfg = (temp: number) => ({ systemInstruction: skill, maxOutputTokens: 200, temperature: temp });
+  const cfg = (temp: number) => ({ maxOutputTokens: 200, temperature: temp });
   const [a, b] = await Promise.all([
-    ai.models.generateContent({ model: geminiModel, config: cfg(1.1),
-      contents: [{ role: 'user', parts: [{ text: '请用这个人设发一条自发推文（20字以内，不要解释）：' }] }] }),
-    ai.models.generateContent({ model: geminiModel, config: cfg(1.0),
-      contents: [{ role: 'user', parts: [{ text: '[@stranger] 说了:\n这你们华人都是一个怎么想的？\n请用这个人设回复（可以输出 <skip>）：' }] }] }),
+    fetchGemini(geminiModel, [{ role: 'user', parts: [{ text: '请用这个人设发一条自发推文（20字以内，不要解释）：' }] }], skill, cfg(1.1), geminiApiKey, baseUrl),
+    fetchGemini(geminiModel, [{ role: 'user', parts: [{ text: '[@stranger] 说了:\n这你们华人都是一个怎么想的？\n请用这个人设回复（可以输出 <skip>）：' }] }], skill, cfg(1.0), geminiApiKey, baseUrl),
   ]);
-  return { tweet: a.text?.trim() ?? '(error)', reply: b.text?.trim() ?? '(error)' };
+  return { tweet: a ?? '(error)', reply: b ?? '(error)' };
 }
 
 export async function refineSkill(
   skill: string, feedback: string, geminiApiKey: string, geminiModel: string, baseUrl?: string
 ): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey: geminiApiKey, httpOptions: baseUrl ? { baseUrl } : undefined });
-  const res = await ai.models.generateContent({
-    model: geminiModel,
-    contents: [{ role: 'user', parts: [{ text:
-      `根据以下用户反馈更新人格配置，保持Markdown结构，只输出完整的更新后Markdown文本。\n\n当前配置：\n\`\`\`\n${skill}\n\`\`\`\n\n用户反馈：${feedback}\n\n输出：` }] }],
-    config: {
-      systemInstruction: '你是人格配置文件编辑引擎。保持Markdown结构和所有标题，只输出修改后的纯Markdown文本。',
-      maxOutputTokens: 4000, temperature: 0.4,
-    },
-  });
-  return res.text?.trim() ?? skill;
+  const prompt = `根据以下用户反馈更新人格配置，保持Markdown结构，只输出完整的更新后Markdown文本。\n\n当前配置：\n\`\`\`\n${skill}\n\`\`\`\n\n用户反馈：${feedback}\n\n输出：`;
+  const sysInst = '你是人格配置文件编辑引擎。保持Markdown结构和所有标题，只输出修改后的纯Markdown文本。';
+  
+  return fetchGemini(
+    geminiModel,
+    [{ role: 'user', parts: [{ text: prompt }] }],
+    sysInst,
+    { maxOutputTokens: 4000, temperature: 0.4 },
+    geminiApiKey,
+    baseUrl
+  ).catch(() => skill);
 }

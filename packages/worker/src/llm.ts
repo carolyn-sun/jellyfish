@@ -1,44 +1,24 @@
-import { GoogleGenAI } from '@google/genai';
-import type { Content } from '@google/genai';
+import { fetchGemini } from './gemini.ts';
+import type { GeminiContent } from './gemini.ts';
 import type { Env, AgentDbRecord, ConversationTurn, XTweet, InteractionMemory, VipEntry } from './types.ts';
-
-// ─── Create a per-request GenAI client ────────────────────────────────────────
-function getClient(env: Env, agent: AgentDbRecord): GoogleGenAI {
-  return new GoogleGenAI({ apiKey: agent.gemini_api_key, httpOptions: env.CF_GATEWAY_URL ? { baseUrl: env.CF_GATEWAY_URL } : undefined });
-}
 
 // ─── Core generation helper ───────────────────────────────────────────────────
 async function generate(
   env: Env,
   agent: AgentDbRecord,
   systemInstruction: string,
-  contents: Content[],
+  contents: GeminiContent[],
   maxOutputTokens = 200,
   temperature = 0.82,
 ): Promise<string> {
-  const ai = getClient(env, agent);
-
-  const response = await ai.models.generateContent({
-    model: agent.gemini_model,
+  return fetchGemini(
+    agent.gemini_model,
     contents,
-    config: {
-      systemInstruction,
-      maxOutputTokens,
-      temperature,
-    },
-  });
-
-  const candidate = response.candidates?.[0];
-  const finishReason = candidate?.finishReason;
-  console.log(`[llm] finishReason=${finishReason}, parts=${candidate?.content?.parts?.length}`);
-
-  if (finishReason === 'MAX_TOKENS') {
-    console.warn('[llm] Response was truncated — consider increasing maxOutputTokens');
-  }
-
-  const text = response.text?.trim();
-  if (!text) throw new Error('[llm] Empty response from Gemini');
-  return text;
+    systemInstruction,
+    { maxOutputTokens, temperature },
+    agent.gemini_api_key,
+    env.CF_GATEWAY_URL
+  );
 }
 
 // ─── VIP resolution ───────────────────────────────────────────────────────────
@@ -84,8 +64,8 @@ function buildTimelineOverride(agent: AgentDbRecord, vip: VipEntry | undefined):
 }
 
 // ─── Build Gemini content array from conversation thread ──────────────────────
-function buildContents(thread: ConversationTurn[], ownUserId: string): Content[] {
-  return thread.map((turn): Content => {
+function buildContents(thread: ConversationTurn[], ownUserId: string): GeminiContent[] {
+  return thread.map((turn): GeminiContent => {
     let text = turn.mediaNote ? `${turn.text}\n${turn.mediaNote}` : turn.text;
 
     if (turn.role !== 'agent' && turn.authorUsername) {
@@ -150,7 +130,7 @@ export async function generateSpontaneousTweet(
     antiRepeatBlock = `\n\n以下是你最近已经发过的推文，必须避免相似的题材和措辞：\n${list}\n不要重复以上任何内容的核心想法。`;
   }
 
-  const contents: Content[] = [{
+  const contents: GeminiContent[] = [{
     role: 'user',
     parts: [{ text: `现在是 ${now}。请你以角色身份，围绕「${seed}」这个方向，自发地发一条推文。不要解释或重复这个方向，直接输出推文文字。文字必须极其简短干瘪，严格控制在 20 字以内。${antiRepeatBlock}` }],
   }];
@@ -195,7 +175,7 @@ export async function evaluateTimelineTweet(
     tweetBlock += `\n\n这条推文已经有些网友评论了：\n${repliesSection}`;
   }
 
-  const contents: Content[] = [{
+  const contents: GeminiContent[] = [{
     role: 'user',
     parts: [{ text: tweetBlock }],
   }];
@@ -225,7 +205,7 @@ export async function evolvePersonalitySkill(
 
   const contentText = `这是当前的底层核心配置 (Skill):\n\`\`\`markdown\n${currentSkill}\n\`\`\`\n\n这是近期的交互/教诲记录:\n\`\`\`\n${memoryBlock}\n\`\`\`\n\n请吸收这些记录的指令与情感，更新上述 Markdown 配置并直接返回最新版本。`;
 
-  const contents: Content[] = [{
+  const contents: GeminiContent[] = [{
     role: 'user',
     parts: [{ text: contentText }],
   }];

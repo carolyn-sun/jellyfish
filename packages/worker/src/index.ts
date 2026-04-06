@@ -2,8 +2,8 @@ import type { Env, AgentDbRecord } from './types.ts';
 import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRefresh, runNightlyEvolution } from './agent.ts';
 import { getMe, getUserByUsername, getUserTweets } from './twitter.ts';
 import { getLastMentionId, getCachedOwnUserId, getInteractionsMemory, getActivityLog } from './memory.ts';
-import { GoogleGenAI } from '@google/genai';
 import { fetchSourceTweets, distillSkillFromTweets, genSample, refineSkill } from './builder.ts';
+import { listGeminiModels } from './gemini.ts';
 
 async function getAllActiveAgents(env: Env): Promise<AgentDbRecord[]> {
   const { results } = await env.DB.prepare('SELECT * FROM agents WHERE status = "active"').all();
@@ -248,17 +248,10 @@ export default {
       const key = url.searchParams.get('key') || env.GEMINI_API_KEY;
       if (!key) return json({ error: 'Missing key' }, 400);
       try {
-        const ai = new GoogleGenAI({ apiKey: key, httpOptions: env.CF_GATEWAY_URL ? { baseUrl: env.CF_GATEWAY_URL } : undefined });
-        const models: string[] = [];
-        const pager = await ai.models.list();
-        for await (const m of pager) {
-          const name = m.name ?? '';
-          if (name.includes('gemini')) {
-            models.push(name.replace(/^models\//, ''));
-          }
-        }
-        resSortModelsList(models);
-        return json({ models });
+        const models = await listGeminiModels(key, env.CF_GATEWAY_URL);
+        const filtered = models.filter(m => m.includes('gemini'));
+        resSortModelsList(filtered);
+        return json({ models: filtered });
       } catch (err) { return json({ error: String(err) }, 400); }
     }
 
