@@ -71,6 +71,8 @@ export interface Env {
   CF_GATEWAY_NAME: string;
   /** Cloudflare AI Gateway Token (generated in the Gateway dashboard) */
   CF_AIG_TOKEN: string;
+  /** Local dev only: override origin (e.g. http://localhost:8787) to bypass Wrangler domain rewriting */
+  LOCAL_ORIGIN?: string;
 }
 
 // ─── X API types ───────────────────────────────────────────────────────────────

@@ -781,6 +781,9 @@ import Layout from "../layouts/Layout.astro";
         if (!$("agentHandle").value) $("agentHandle").value = meRes.username;
         $("hintMyName").textContent = meRes.name;
         $("hintMyHandle").textContent = meRes.username;
+        // Always keep S in sync — validate(2) is skipped when wizard goes s1→s3
+        S.agentName = meRes.name;
+        S.agentHandle = meRes.username;
       }
     }
 

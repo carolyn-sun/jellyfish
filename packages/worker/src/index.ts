@@ -141,9 +141,10 @@ export default {
       let reqBody: any = {};
       try { reqBody = await request.clone().json(); } catch(e) {}
 
-      // Local dev with 'routes' overrides request.url and headers (Wrangler rewrites Host, Origin, and Referer)
-      // The most reliable way is passing the exact origin via JSON payload from the frontend.
-      const reqOrigin = reqBody.currentOrigin || url.origin;
+      // env.LOCAL_ORIGIN is set in .dev.vars only — Wrangler dev rewrites request.url/Origin/Referer
+      // to match the configured custom domain (jellyfishai.org), so we must use an env var or
+      // the payload-supplied origin as the only tamper-proof escape hatches.
+      const reqOrigin = env.LOCAL_ORIGIN || reqBody.currentOrigin || url.origin;
 
       const authUrl = new URL('https://twitter.com/i/oauth2/authorize');
       authUrl.searchParams.set('response_type', 'code');
@@ -212,9 +213,64 @@ export default {
       session.status = 'done';
       session.accessToken = data.access_token;
       session.refreshToken = data.refresh_token;
+
+      // If this is a reauth for an existing agent, persist new tokens to DB immediately
+      if (session.agentId && data.refresh_token) {
+        await env.DB.prepare(
+          'UPDATE agents SET refresh_token=?, access_token=null, token_expires_at=0 WHERE id=?'
+        ).bind(data.refresh_token, session.agentId).run();
+        console.log(`[oauth] Reauth tokens updated in DB for agent ${session.agentId}`);
+      }
+
       await env.AGENT_STATE.put('oauth:' + sessionId, JSON.stringify(session), { expirationTtl: 600 });
 
-      return new Response(renderAuthUI('授权成功', 'Auth Successful', '您的 X 账号已成功关联。请回到原部署向导页。', 'Your X account is successfully linked. Please return to the wizard.'), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+      const successSub = session.agentId
+        ? '授权已更新，新的 Refresh Token 现已生效。请关闭此页。'
+        : '您的 X 账号已成功关联。请回到原部署向导页。';
+      const successSubEn = session.agentId
+        ? 'Authorization updated. New Refresh Token is now active. You can close this page.'
+        : 'Your X account is successfully linked. Please return to the wizard.';
+      return new Response(renderAuthUI('授权成功', 'Auth Successful', successSub, successSubEn), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    }
+
+    // ── Reauth for existing agent ─────────────────────────────────────────────
+    if (pathname === '/api/agent/reauth-start' && method === 'POST') {
+      try {
+        let reqBody: any = {};
+        try { reqBody = await request.clone().json(); } catch(e) {}
+        const reauthAgentId = url.searchParams.get('id') || reqBody.agentId;
+        if (!reauthAgentId) return json({ error: 'Missing agentId' }, 400);
+
+        const { results } = await env.DB.prepare('SELECT id FROM agents WHERE id = ?').bind(reauthAgentId).all();
+        if (!results || results.length === 0) return json({ error: 'Agent not found' }, 404);
+
+        const sessionId = crypto.randomUUID();
+        const codeVerifier = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
+        const encoder = new TextEncoder();
+        const cvData = encoder.encode(codeVerifier);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', cvData);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const codeChallenge = btoa(String.fromCharCode.apply(null, hashArray)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const state = crypto.randomUUID().replace(/-/g, '');
+
+        const reqOrigin = env.LOCAL_ORIGIN || reqBody.currentOrigin || url.origin;
+        const redirectUri = reqOrigin + '/callback';
+
+        const authUrl = new URL('https://twitter.com/i/oauth2/authorize');
+        authUrl.searchParams.set('response_type', 'code');
+        authUrl.searchParams.set('client_id', env.X_CLIENT_ID);
+        authUrl.searchParams.set('redirect_uri', redirectUri);
+        authUrl.searchParams.set('scope', 'tweet.read tweet.write users.read offline.access');
+        authUrl.searchParams.set('state', state);
+        authUrl.searchParams.set('code_challenge', codeChallenge);
+        authUrl.searchParams.set('code_challenge_method', 'S256');
+
+        const sessionData = { state, codeVerifier, redirectUri, agentId: reauthAgentId, status: 'pending' };
+        await env.AGENT_STATE.put('oauth:' + sessionId, JSON.stringify(sessionData), { expirationTtl: 600 });
+        await env.AGENT_STATE.put('oauth_state:' + state, sessionId, { expirationTtl: 600 });
+
+        return json({ sessionId, authUrl: authUrl.toString() });
+      } catch (err) { return json({ error: String(err) }, 500); }
     }
 
     if (pathname === '/api/oauth/refresh' && method === 'POST') {
@@ -530,6 +586,15 @@ export default {
       </div>
       <span id="secret-status" class="status-tag"></span>
     </div>
+
+    <div class="card wide" style="border-color:rgba(234,179,8,0.4)">
+      <h2 style="color:#fbbf24">🔄 <span class="lang-zh">重新授权 X 账号</span><span class="lang-en">Re-authorize X Account</span></h2>
+      <p><span class="lang-zh">当 Refresh Token 失效或被撤销时，重新走一遍 OAuth 授权流程以恢复 Agent 正常运行。</span><span class="lang-en">Re-run the OAuth flow to recover the Agent when its Refresh Token has expired or been revoked.</span></p>
+      <button class="btn btn-ghost" id="reauthBtn" onclick="doReauth('${agentId}')" style="border-color:rgba(234,179,8,0.4);color:#fbbf24">
+        🔗 <span class="lang-zh">开始重新授权</span><span class="lang-en">Start Re-authorization</span>
+      </button>
+      <div id="reauth-status" class="status-tag" style="margin-left:12px"></div>
+    </div>
   </div>
 
   <div id="output"></div>
@@ -685,6 +750,70 @@ export default {
         document.getElementById('dash-secret-update').value = '';
       }
     } catch(e) { st.textContent = '❌ ' + e.message; st.style.color = '#f87171'; }
+  }
+
+  // ── Re-authorize ─────────────────────────────────────────────────────────
+  async function doReauth(id) {
+    var btn = document.getElementById('reauthBtn');
+    var st = document.getElementById('reauth-status');
+    var isEn = document.body.classList.contains('en-mode');
+    btn.disabled = true;
+    st.textContent = isEn ? '⏳ Opening auth window...' : '⏳ 正在打开授权窗口...';
+    st.style.color = '#94a3b8';
+
+    try {
+      var r = await fetch('/api/agent/reauth-start?id=' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentOrigin: window.location.origin })
+      });
+      var d = await r.json();
+      if (d.error) { st.textContent = '❌ ' + d.error; st.style.color = '#f87171'; btn.disabled = false; return; }
+
+      var authWin = window.open(d.authUrl, '_blank', 'width=600,height=700');
+      st.textContent = isEn ? '⏳ Waiting for authorization...' : '⏳ 等待授权回调中……';
+
+      var pollTimer = setInterval(async function() {
+        try {
+          var res = await fetch('/api/oauth/result?sessionId=' + encodeURIComponent(d.sessionId));
+          var s = await res.json();
+          if (s.status === 'done') {
+            clearInterval(pollTimer);
+            if (authWin && !authWin.closed) authWin.close();
+            st.textContent = isEn ? '✅ Re-authorized! New token saved.' : '✅ 重新授权成功！新 Token 已写入。';
+            st.style.color = '#86efac';
+            btn.disabled = false;
+          } else if (s.status === 'error') {
+            clearInterval(pollTimer);
+            st.textContent = '❌ ' + (s.error || 'OAuth failed');
+            st.style.color = '#f87171';
+            btn.disabled = false;
+          }
+        } catch(e) {
+          clearInterval(pollTimer);
+          st.textContent = '❌ ' + e.message;
+          st.style.color = '#f87171';
+          btn.disabled = false;
+        }
+      }, 1500);
+
+      // Auto-clean up if window is closed without completing
+      var closedTimer = setInterval(function() {
+        if (authWin && authWin.closed) {
+          clearInterval(closedTimer);
+          clearInterval(pollTimer);
+          if (st.textContent.includes('⏳')) {
+            st.textContent = isEn ? '⚠️ Window closed before completing.' : '⚠️ 授权窗口已关闭，请重试。';
+            st.style.color = '#fbbf24';
+            btn.disabled = false;
+          }
+        }
+      }, 1000);
+    } catch(e) {
+      st.textContent = '❌ ' + e.message;
+      st.style.color = '#f87171';
+      btn.disabled = false;
+    }
   }
 </script>
 </body>
