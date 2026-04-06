@@ -509,7 +509,17 @@ export default {
     label{display:block;font-weight:500;font-size:.85rem;color:#e4e4e7;margin-top:14px}
     .cfg-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
     /* Output */
-    #output{margin-top:20px;background:rgba(0,0,0,0.4);border:1px solid var(--input-border);border-radius:12px;padding:16px;white-space:pre-wrap;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#86efac;min-height:80px;display:none;line-height:1.6}
+    /* Debug output panel — fixed at bottom */
+    #output{position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);width:min(860px,96vw);max-height:52vh;background:rgba(5,5,10,.97);border:1px solid rgba(134,239,172,.2);border-bottom:none;border-radius:14px 14px 0 0;padding:0;white-space:pre-wrap;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#86efac;line-height:1.6;z-index:9999;display:none;overflow:hidden;box-shadow:0 -8px 40px rgba(0,0,0,.6);transition:transform .3s cubic-bezier(.16,1,.3,1)}
+    #output.visible{transform:translateX(-50%) translateY(0)}
+    #output-header{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;border-bottom:1px solid rgba(134,239,172,.1);background:rgba(134,239,172,.05);font-size:.72rem;color:rgba(134,239,172,.6)}
+    #output-close{cursor:pointer;background:none;border:none;color:rgba(134,239,172,.5);font-size:1rem;padding:0 4px;line-height:1;transition:color .15s}
+    #output-close:hover{color:#86efac}
+    #output-body{padding:14px 16px;overflow-y:auto;max-height:calc(52vh - 40px)}
+    /* Button spinner */
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .btn-loading{position:relative;pointer-events:none;opacity:.75}
+    .btn-loading::after{content:'';position:absolute;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;right:12px;top:50%;margin-top:-7px}
     /* Global scrollbar */
     ::-webkit-scrollbar{width:6px;height:6px}
     ::-webkit-scrollbar-track{background:transparent}
@@ -529,6 +539,15 @@ export default {
   </style>
 </head>
 <body>
+<script>
+  // Run synchronously before any paint to prevent auth-gate flash on reload
+  (function() {
+    var s = sessionStorage.getItem('dashSecret');
+    if (s) {
+      document.write('<style>#auth-gate{display:none!important}#dashboard{display:block!important}</style>');
+    }
+  })();
+</script>
 <div class="blob blob-1"></div>
 <div class="blob blob-2"></div>
 
@@ -570,34 +589,34 @@ export default {
     <div class="card">
       <h2>📬 <span class="lang-zh">回复提及</span><span class="lang-en">Reply Mentions</span></h2>
       <p><span class="lang-zh">立即扫描新的 @mention 并生成回复</span><span class="lang-en">Scan new @mentions and generate replies immediately</span></p>
-      <a class="btn btn-primary" href="#" onclick="run('/api/agent/trigger?id=${agentId}');return false"><span class="lang-zh">立即触发</span><span class="lang-en">Trigger Now</span></a>
+      <a class="btn btn-primary" href="#" onclick="run(event,/api/agent/trigger?id=${agentId}');return false"><span class="lang-zh">立即触发</span><span class="lang-en">Trigger Now</span></a>
     </div>
     <div class="card">
       <h2>👀 <span class="lang-zh">刷时间线</span><span class="lang-en">Browse Timeline</span></h2>
       <p><span class="lang-zh">扫描粉丝/VIP 列表，随机点赞或回复 2 条推文</span><span class="lang-en">Scan fans/VIP list, randomly like or reply to 2 tweets</span></p>
-      <a class="btn btn-primary" href="#" onclick="run('/api/agent/trigger-timeline?id=${agentId}');return false"><span class="lang-zh">浏览时间线</span><span class="lang-en">Browse Timeline</span></a>
+      <a class="btn btn-primary" href="#" onclick="run(event,/api/agent/trigger-timeline?id=${agentId}');return false"><span class="lang-zh">浏览时间线</span><span class="lang-en">Browse Timeline</span></a>
     </div>
     <div class="card">
       <h2>💬 <span class="lang-zh">自发推文</span><span class="lang-en">Spontaneous Tweet</span></h2>
       <p><span class="lang-zh">随机生成并发布一条自发推文（冷却 ${agent.cooldown_days} 天）</span><span class="lang-en">Generate and post a spontaneous tweet (${agent.cooldown_days}d cooldown)</span></p>
-      <a class="btn btn-primary" href="#" onclick="run('/api/agent/spontaneous?id=${agentId}');return false"><span class="lang-zh">发推文</span><span class="lang-en">Post Tweet</span></a>
-      <a class="btn btn-ghost" href="#" onclick="run('/api/agent/spontaneous?id=${agentId}&force=true');return false"><span class="lang-zh">强制发</span><span class="lang-en">Force</span></a>
+      <a class="btn btn-primary" href="#" onclick="run(event,/api/agent/spontaneous?id=${agentId}');return false"><span class="lang-zh">发推文</span><span class="lang-en">Post Tweet</span></a>
+      <a class="btn btn-ghost" href="#" onclick="run(event,/api/agent/spontaneous?id=${agentId}&force=true');return false"><span class="lang-zh">强制发</span><span class="lang-en">Force</span></a>
     </div>
     <div class="card">
       <h2>🧠 <span class="lang-zh">互动记忆</span><span class="lang-en">Interaction Memory</span></h2>
       <p><span class="lang-zh">查看白名单用户塑造 Agent 的历史互动记录</span><span class="lang-en">View historical interaction records shaping the Agent</span></p>
       <a class="btn btn-ghost" target="_blank" href="${base}/api/agent/memory?id=${agentId}"><span class="lang-zh">查看记忆</span><span class="lang-en">View Memory</span></a>
-      <a class="btn btn-primary" href="#" onclick="run('/api/agent/refresh-memory?id=${agentId}');return false"><span class="lang-zh">拉取最新</span><span class="lang-en">Refresh</span></a>
+      <a class="btn btn-primary" href="#" onclick="run(event,/api/agent/refresh-memory?id=${agentId}');return false"><span class="lang-zh">拉取最新</span><span class="lang-en">Refresh</span></a>
     </div>
-    <div class="card" style="border-color:rgba(139,92,246,0.4)">
+    <div class="card">
       <h2 style="color:#c084fc">🧬 <span class="lang-zh">人格演化</span><span class="lang-en">Persona Evolution</span></h2>
       <p><span class="lang-zh">吸收现有记忆重塑底层人格（执行后清空记忆库）</span><span class="lang-en">Absorb memories to reshape persona (clears memory after)</span></p>
-      <a class="btn btn-primary" href="#" onclick="run('/api/agent/evolve?id=${agentId}');return false"><span class="lang-zh">强制重塑</span><span class="lang-en">Evolve Now</span></a>
+      <a class="btn btn-primary" href="#" onclick="run(event,/api/agent/evolve?id=${agentId}');return false"><span class="lang-zh">强制重塑</span><span class="lang-en">Evolve Now</span></a>
     </div>
     <div class="card">
       <h2>📊 <span class="lang-zh">Agent 状态</span><span class="lang-en">Agent Status</span></h2>
       <p><span class="lang-zh">查看当前状态与配置信息</span><span class="lang-en">View current status and configuration</span></p>
-      <a class="btn btn-ghost" href="#" onclick="run('/api/agent/status?id=${agentId}');return false"><span class="lang-zh">查看</span><span class="lang-en">View</span></a>
+      <a class="btn btn-ghost" href="#" onclick="run(event,/api/agent/status?id=${agentId}');return false"><span class="lang-zh">查看</span><span class="lang-en">View</span></a>
       <a class="btn btn-ghost" target="_blank" href="${base}/api/agent/activity?id=${agentId}"><span class="lang-zh">活动日志</span><span class="lang-en">Activity Log</span></a>
     </div>
   </div>
@@ -620,6 +639,68 @@ export default {
       </div>
       <button class="btn btn-primary" onclick="saveConfig('${agentId}')">💾 <span class="lang-zh">保存配置</span><span class="lang-en">Save Config</span></button>
       <span id="cfg-status" class="status-tag"></span>
+    </div>
+
+    <div class="card wide" style="border-color:rgba(20,184,166,0.4)">
+      <h2 style="color:#2dd4bf">📝 <span class="lang-zh">记忆白名单</span><span class="lang-en">Memory Whitelist</span></h2>
+      <p><span class="lang-zh">设置搜集哪些用户互动记忆的账号。选择「所有人」或填入指定 @handle（逗号分隔）。</span><span class="lang-en">Set which users' interactions are absorbed into memory. Choose everyone, or list specific handles (comma-separated).</span></p>
+      <div style="display:flex;gap:16px;margin:12px 0">
+        <label style="margin-top:0;display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="wl-mode" id="wl-all" value="all" ${(agent.mem_whitelist as any) === 'all' ? 'checked' : ''} style="width:auto;height:auto;margin-top:0">
+          <span class="lang-zh">🌍 所有人</span><span class="lang-en">🌍 Everyone</span>
+        </label>
+        <label style="margin-top:0;display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="wl-mode" id="wl-specific" value="specific" ${(agent.mem_whitelist as any) !== 'all' ? 'checked' : ''} style="width:auto;height:auto;margin-top:0">
+          <span class="lang-zh">📌 指定账号</span><span class="lang-en">📌 Specific accounts</span>
+        </label>
+      </div>
+      <div id="wl-accounts-row" style="${(agent.mem_whitelist as any) !== 'all' ? '' : 'display:none'}">
+        <input id="wl-accounts" type="text" placeholder="handle1, handle2, handle3" value="${(agent.mem_whitelist as any) !== 'all' ? (agent.mem_whitelist as string[]).join(', ') : ''}" style="margin-top:0">
+      </div>
+      <button class="btn btn-primary" style="margin-top:12px" onclick="saveWhitelist('${agentId}')">💾 <span class="lang-zh">保存</span><span class="lang-en">Save</span></button>
+      <span id="wl-status" class="status-tag"></span>
+    </div>
+
+    <div class="card wide" style="border-color:rgba(251,191,36,0.4)">
+      <h2 style="color:#fbbf24">⭐ <span class="lang-zh">VIP 用户规则</span><span class="lang-en">VIP User Rules</span></h2>
+      <p><span class="lang-zh">为指定用户设置单独的回复/点赞概率和备注 persona。这些用户会被优先衴爪时间线。</span><span class="lang-en">Set per-user reply/like probabilities and persona note. These users are prioritized in timeline engagement.</span></p>
+      <table id="vip-table" style="width:100%;border-collapse:collapse;font-size:.82rem;margin:12px 0">
+        <thead>
+          <tr style="color:var(--text-muted);border-bottom:1px solid var(--input-border)">
+            <th style="text-align:left;padding:6px 8px">@handle</th>
+            <th style="text-align:center;padding:6px 4px"><span class="lang-zh">回复率</span><span class="lang-en">Reply%</span></th>
+            <th style="text-align:center;padding:6px 4px"><span class="lang-zh">点赞率</span><span class="lang-en">Like%</span></th>
+            <th style="text-align:left;padding:6px 4px">Persona</th>
+            <th style="padding:6px 4px"></th>
+          </tr>
+        </thead>
+        <tbody id="vip-tbody">
+          ${(Array.isArray(agent.vip_list) ? agent.vip_list : []).map((v: any, i: number) => `
+          <tr data-idx="${i}" style="border-bottom:1px solid rgba(255,255,255,0.04)">
+            <td style="padding:6px 8px">@${v.username}</td>
+            <td style="padding:6px 4px;text-align:center">${((v.replyProbability ?? 0) * 100).toFixed(0)}%</td>
+            <td style="padding:6px 4px;text-align:center">${((v.likeProbability ?? 0) * 100).toFixed(0)}%</td>
+            <td style="padding:6px 4px;color:var(--text-muted)">${v.persona ?? ''}</td>
+            <td style="padding:6px 4px"><button class="btn btn-ghost" style="height:28px;padding:0 10px;font-size:.75rem;border-color:rgba(239,68,68,0.3);color:#f87171" onclick="deleteVip('${agentId}',${i})">✕</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:8px;align-items:end;margin-top:8px" id="vip-add-row">
+        <label style="margin-top:0"><span class="lang-zh">用户名（不含 @）</span><span class="lang-en">Username (no @)</span>
+          <input id="vip-new-handle" type="text" placeholder="handle" style="margin-top:4px">
+        </label>
+        <label style="margin-top:0"><span class="lang-zh">回复率</span><span class="lang-en">Reply%</span>
+          <input id="vip-new-reply" type="number" min="0" max="1" step="0.05" value="0.8" style="margin-top:4px">
+        </label>
+        <label style="margin-top:0"><span class="lang-zh">点赞率</span><span class="lang-en">Like%</span>
+          <input id="vip-new-like" type="number" min="0" max="1" step="0.05" value="1" style="margin-top:4px">
+        </label>
+        <label style="margin-top:0">Persona <span style="opacity:.5;font-size:.75rem">(可空)</span>
+          <input id="vip-new-persona" type="text" placeholder="e.g. 主人" style="margin-top:4px">
+        </label>
+        <button class="btn btn-primary" style="margin-top:0;height:44px" onclick="addVip('${agentId}')">✚ <span class="lang-zh">添加</span><span class="lang-en">Add</span></button>
+      </div>
+      <span id="vip-status" class="status-tag"></span>
     </div>
 
     <div class="card wide" style="border-color:rgba(139,92,246,0.4)">
@@ -650,7 +731,13 @@ export default {
     </div>
   </div>
 
-  <div id="output"></div>
+  <div id="output">
+    <div id="output-header">
+      <span>🖥️ <span class="lang-zh">操作结果</span><span class="lang-en">Output</span></span>
+      <button id="output-close" onclick="closeOutput()">✕</button>
+    </div>
+    <div id="output-body"></div>
+  </div>
 </div>
 </div>
 
@@ -717,7 +804,90 @@ export default {
     if (e.key === 'Enter') doAuthSecret();
   });
 
-  // ── Fetch Twitter identity (name / handle) from server after auth ──────
+  // ── Whitelist ─────────────────────────────────────────────────────
+  document.querySelectorAll('input[name="wl-mode"]').forEach(function(r) {
+    r.addEventListener('change', function() {
+      document.getElementById('wl-accounts-row').style.display =
+        document.getElementById('wl-specific').checked ? '' : 'none';
+    });
+  });
+
+  async function saveWhitelist(id) {
+    var isAll = document.getElementById('wl-all').checked;
+    var raw = document.getElementById('wl-accounts').value;
+    var handles = raw.split(',').map(function(s){return s.trim().replace(/^@/,'');}).filter(Boolean);
+    var value = isAll ? 'all' : handles;
+    var st = document.getElementById('wl-status');
+    var isEn = document.body.classList.contains('en-mode');
+    if (!isAll && handles.length === 0) { st.textContent = isEn ? '⚠️ Enter at least one handle' : '⚠️ 请至少输入一个账号'; st.style.color='#fbbf24'; return; }
+    st.textContent = isEn ? '⏳ Saving...' : '⏳ 保存中...'; st.style.color='#94a3b8';
+    try {
+      var r = await fetch('/api/agent/update-whitelist?id=' + id, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ whitelist: value })
+      });
+      var d = await r.json();
+      st.textContent = d.ok ? (isEn ? '✅ Saved' : '✅ 已保存') : '❌ ' + d.error;
+      st.style.color = d.ok ? '#86efac' : '#f87171';
+    } catch(e) { st.textContent = '❌ ' + e.message; st.style.color='#f87171'; }
+  }
+
+  // ── VIP ─────────────────────────────────────────────────────────────
+  var _vipList = ${JSON.stringify(Array.isArray(agent.vip_list) ? agent.vip_list : [])};
+
+  function renderVipTable() {
+    var tbody = document.getElementById('vip-tbody');
+    var isEn = document.body.classList.contains('en-mode');
+    tbody.innerHTML = _vipList.map(function(v, i) {
+      return '<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">' +
+        '<td style="padding:6px 8px">@' + v.username + '</td>' +
+        '<td style="padding:6px 4px;text-align:center">' + Math.round((v.replyProbability||0)*100) + '%</td>' +
+        '<td style="padding:6px 4px;text-align:center">' + Math.round((v.likeProbability||0)*100) + '%</td>' +
+        '<td style="padding:6px 4px;color:var(--text-muted)">' + (v.persona||'') + '</td>' +
+        '<td style="padding:6px 4px"><button class="btn btn-ghost" style="height:28px;padding:0 10px;font-size:.75rem;border-color:rgba(239,68,68,0.3);color:#f87171" onclick="deleteVip(\'${agentId}\',' + i + ')'>✕</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  async function _saveVip(id) {
+    var st = document.getElementById('vip-status');
+    var isEn = document.body.classList.contains('en-mode');
+    try {
+      var r = await fetch('/api/agent/update-vip?id=' + id, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ vip_list: _vipList })
+      });
+      var d = await r.json();
+      st.textContent = d.ok ? (isEn ? '✅ Saved' : '✅ 已保存') : '❌ ' + d.error;
+      st.style.color = d.ok ? '#86efac' : '#f87171';
+    } catch(e) { st.textContent = '❌ ' + e.message; st.style.color='#f87171'; }
+  }
+
+  async function addVip(id) {
+    var handle = document.getElementById('vip-new-handle').value.trim().replace(/^@/, '');
+    var reply = parseFloat(document.getElementById('vip-new-reply').value);
+    var like = parseFloat(document.getElementById('vip-new-like').value);
+    var persona = document.getElementById('vip-new-persona').value.trim();
+    var st = document.getElementById('vip-status');
+    var isEn = document.body.classList.contains('en-mode');
+    if (!handle) { st.textContent = isEn ? '⚠️ Username required' : '⚠️ 请输入用户名'; st.style.color='#fbbf24'; return; }
+    if (_vipList.some(function(v){return v.username.toLowerCase()===handle.toLowerCase();})) {
+      st.textContent = isEn ? '⚠️ Already in list' : '⚠️ 该用户已在列表中'; st.style.color='#fbbf24'; return;
+    }
+    _vipList.push({ username: handle, replyProbability: reply, likeProbability: like, persona: persona || undefined });
+    renderVipTable();
+    document.getElementById('vip-new-handle').value = '';
+    document.getElementById('vip-new-persona').value = '';
+    await _saveVip(id);
+  }
+
+  async function deleteVip(id, idx) {
+    _vipList.splice(idx, 1);
+    renderVipTable();
+    await _saveVip(id);
+  }
+
+  // ── Update identity (name / handle) from Twitter ────────────────────
   async function fetchTwitterIdentity() {
     try {
       var r = await fetch('/api/agent/twitter-identity?id=${agentId}');
@@ -981,6 +1151,24 @@ export default {
           }
           return json({ name: twitterName, username: twitterHandle });
         } catch (err) { return json({ error: String(err) }, 500); }
+      }
+      if (pathname === '/api/agent/update-whitelist' && method === 'POST') {
+        try {
+          const body = await request.json() as any;
+          const wl = body.whitelist;
+          if (wl !== 'all' && !Array.isArray(wl)) return json({ error: 'whitelist must be "all" or an array' }, 400);
+          const stored = wl === 'all' ? 'all' : JSON.stringify((wl as string[]).map((h: string) => h.replace(/^@/, '').trim()).filter(Boolean));
+          await env.DB.prepare('UPDATE agents SET mem_whitelist=? WHERE id=?').bind(stored, agentId).run();
+          return json({ ok: true });
+        } catch (err) { return json({ ok: false, error: String(err) }, 500); }
+      }
+      if (pathname === '/api/agent/update-vip' && method === 'POST') {
+        try {
+          const body = await request.json() as any;
+          if (!Array.isArray(body.vip_list)) return json({ error: 'vip_list must be an array' }, 400);
+          await env.DB.prepare('UPDATE agents SET vip_list=? WHERE id=?').bind(JSON.stringify(body.vip_list), agentId).run();
+          return json({ ok: true });
+        } catch (err) { return json({ ok: false, error: String(err) }, 500); }
       }
       return json({ error: 'Unknown agent action' }, 404);
     }
