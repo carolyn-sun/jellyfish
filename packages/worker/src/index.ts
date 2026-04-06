@@ -605,9 +605,8 @@ export default {
     </div>
     <div class="card">
       <h2>💬 <span class="lang-zh">自发推文</span><span class="lang-en">Spontaneous Tweet</span></h2>
-      <p><span class="lang-zh">随机生成并发布一条自发推文（冷却 ${agent.cooldown_days} 天）</span><span class="lang-en">Generate and post a spontaneous tweet (${agent.cooldown_days}d cooldown)</span></p>
+      <p><span class="lang-zh">随机生成并发布一条自发推文</span><span class="lang-en">Generate and post a spontaneous tweet</span></p>
       <a class="btn btn-primary" href="#" onclick="run(event,'/api/agent/spontaneous?id=${agentId}');return false"><span class="lang-zh">发推文</span><span class="lang-en">Post Tweet</span></a>
-      <a class="btn btn-ghost" href="#" onclick="run(event,'/api/agent/spontaneous?id=${agentId}&force=true');return false"><span class="lang-zh">强制发</span><span class="lang-en">Force</span></a>
     </div>
     <div class="card">
       <h2>🧠 <span class="lang-zh">互动记忆</span><span class="lang-en">Interaction Memory</span></h2>
@@ -635,17 +634,19 @@ export default {
   <div class="card-grid">
     <div class="card wide" style="border-color:rgba(37,99,235,0.4)">
       <h2 style="color:#60a5fa">⚙️ <span class="lang-zh">概率调节</span><span class="lang-en">Probability Settings</span></h2>
-      <p><span class="lang-zh">调整回复概率、点赞概率与自发推文冷却时间</span><span class="lang-en">Adjust reply/like probability and spontaneous tweet cooldown</span></p>
-      <div class="cfg-grid">
+      <p><span class="lang-zh">调整回复概率与点赞概率</span><span class="lang-en">Adjust reply and like probability</span></p>
+      <div class="cfg-grid" style="grid-template-columns:1fr 1fr">
         <label><span class="lang-zh">回复概率 (0~1)</span><span class="lang-en">Reply Probability (0~1)</span>
           <input id="cfg-reply" type="number" step="0.05" min="0" max="1" value="${agent.reply_pct}">
         </label>
         <label><span class="lang-zh">点赞概率 (0~1)</span><span class="lang-en">Like Probability (0~1)</span>
           <input id="cfg-like" type="number" step="0.05" min="0" max="1" value="${agent.like_pct}">
         </label>
-        <label><span class="lang-zh">自发推文冷却（天）</span><span class="lang-en">Cooldown (Days)</span>
-          <input id="cfg-cooldown" type="number" step="1" min="0" value="${agent.cooldown_days}">
-        </label>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin:10px 0 14px;padding:10px 14px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.2);border-radius:10px;font-size:.8rem">
+        <span style="font-size:1.1rem">🔒</span>
+        <span><span class="lang-zh">自发推文冷却固定 <b>3 天</b>。赞助作者可以解锁自定义冷却</span><span class="lang-en">Spontaneous tweet cooldown is fixed at <b>3 days</b>. Support the author to unlock custom cooldown</span>
+        &nbsp;<a href="https://x.com/HomeCollider" target="_blank" style="color:#fbbf24;text-decoration:underline"><span class="lang-zh">支持作者 @HomeCollider</span><span class="lang-en">Support @HomeCollider</span></a></span>
       </div>
       <button class="btn btn-primary" onclick="saveConfig('${agentId}')">💾 <span class="lang-zh">保存配置</span><span class="lang-en">Save Config</span></button>
       <span id="cfg-status" class="status-tag"></span>
@@ -673,7 +674,7 @@ export default {
 
     <div class="card wide" style="border-color:rgba(251,191,36,0.4)">
       <h2 style="color:#fbbf24">⭐ <span class="lang-zh">VIP 用户规则</span><span class="lang-en">VIP User Rules</span></h2>
-      <p><span class="lang-zh">为指定用户设置单独的回复/点赞概率和备注 persona。这些用户会被优先衴爪时间线。</span><span class="lang-en">Set per-user reply/like probabilities and persona note. These users are prioritized in timeline engagement.</span></p>
+      <p><span class="lang-zh">为指定用户设置单独的回复/点赞概率和备注 persona。这些用户会被优先置入时间线队列。</span><span class="lang-en">Set per-user reply/like probabilities and persona note. These users are prioritized in timeline engagement.</span></p>
       <table id="vip-table" style="width:100%;border-collapse:collapse;font-size:.82rem;margin:12px 0">
         <thead>
           <tr style="color:var(--text-muted);border-bottom:1px solid var(--input-border)">
@@ -685,7 +686,7 @@ export default {
           </tr>
         </thead>
         <tbody id="vip-tbody">
-          ${(Array.isArray(agent.vip_list) ? agent.vip_list : []).map((v: any, i: number) => `
+          ${(vipList as any[]).map((v: any, i: number) => `
           <tr data-idx="${i}" style="border-bottom:1px solid rgba(255,255,255,0.04)">
             <td style="padding:6px 8px">@${v.username}</td>
             <td style="padding:6px 4px;text-align:center">${((v.replyProbability ?? 0) * 100).toFixed(0)}%</td>
@@ -843,20 +844,27 @@ export default {
   }
 
   // ── VIP ─────────────────────────────────────────────────────────────
-  var _vipList = ${JSON.stringify(Array.isArray(agent.vip_list) ? agent.vip_list : [])};
+  var _vipList = ${JSON.stringify(vipList)};
 
   function renderVipTable() {
     var tbody = document.getElementById('vip-tbody');
-    var isEn = document.body.classList.contains('en-mode');
-    tbody.innerHTML = _vipList.map(function(v, i) {
-      return '<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">' +
+    tbody.innerHTML = '';
+    _vipList.forEach(function(v, i) {
+      var tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid rgba(255,255,255,0.04)';
+      tr.innerHTML =
         '<td style="padding:6px 8px">@' + v.username + '</td>' +
         '<td style="padding:6px 4px;text-align:center">' + Math.round((v.replyProbability||0)*100) + '%</td>' +
         '<td style="padding:6px 4px;text-align:center">' + Math.round((v.likeProbability||0)*100) + '%</td>' +
         '<td style="padding:6px 4px;color:var(--text-muted)">' + (v.persona||'') + '</td>' +
-        '<td style="padding:6px 4px"><button class="btn btn-ghost" style="height:28px;padding:0 10px;font-size:.75rem;border-color:rgba(239,68,68,0.3);color:#f87171" onclick="deleteVip(\'${agentId}\',' + i + ')'>✕</button></td>' +
-        '</tr>';
-    }).join('');
+        '<td style="padding:6px 4px"><button data-idx="' + i + '" class="vip-del-btn btn btn-ghost" style="height:28px;padding:0 10px;font-size:.75rem;border-color:rgba(239,68,68,0.3);color:#f87171">\u2715</button></td>';
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('.vip-del-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        deleteVip('${agentId}', parseInt(btn.getAttribute('data-idx')));
+      });
+    });
   }
 
   async function _saveVip(id) {
@@ -908,8 +916,7 @@ export default {
       }
       if (d.username) {
         document.getElementById('dash-sub').innerHTML =
-          '@' + d.username +
-          ' &middot; <span class="lang-zh">Agent ID:</span><span class="lang-en">Agent ID:</span>' +
+          '<span class="lang-zh">Agent ID:</span><span class="lang-en">Agent ID:</span>' +
           ' <code style="font-size:.78rem;opacity:.7">${agentId}</code>';
       }
     } catch(e) { console.warn('[dashboard] identity fetch failed:', e); }
@@ -970,14 +977,13 @@ export default {
   async function saveConfig(id) {
     var reply = parseFloat(document.getElementById('cfg-reply').value);
     var like  = parseFloat(document.getElementById('cfg-like').value);
-    var cool  = parseFloat(document.getElementById('cfg-cooldown').value);
     var st = document.getElementById('cfg-status');
     var isEn = document.body.classList.contains('en-mode');
     st.textContent = isEn ? '⏳ Saving...' : '⏳ 保存中...'; st.style.color = '#94a3b8';
     try {
       var r = await fetch('/api/agent/update-config?id=' + id, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({reply_pct:reply, like_pct:like, cooldown_days:cool})
+        body:JSON.stringify({reply_pct:reply, like_pct:like, cooldown_days:3})
       });
       var d = await r.json();
       st.textContent = d.ok ? (isEn ? '✅ Saved' : '✅ 已保存') : '❌ ' + d.error;
