@@ -9,8 +9,8 @@ globs = ["**/*.html"]
 fallbacks = []
 fallthrough = true
 
-# [triggers]
-# crons = [ "* * * * *" ]
+[triggers]
+crons = [ "* * * * *" ]
 
 # ── KV Namespaces ──────────────────────────────────────────────────────────────
 # Create with: npx wrangler kv namespace create AGENT_STATE
