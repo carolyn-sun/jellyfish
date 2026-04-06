@@ -138,20 +138,20 @@ export default {
       const state = url.searchParams.get('state');
       const error = url.searchParams.get('error');
 
-      const successPage = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>授权成功</title><style>body{font-family:system-ui;background:#0a0a0f;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}.c{background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);border-radius:16px;padding:48px;text-align:center}h2{color:#8b5cf6}p{color:#94a3b8}</style></head><body><div class="c"><h2>✅ 授权成功！</h2><p>请回到向导页面继续操作。</p><p style="font-size:13px;color:#64748b">这个页面可以关闭了。</p></div></body></html>`;
+      const renderAuthUI = (title: string, subtitle: string, isError: boolean = false) => `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:'Inter',system-ui,-apple-system;background:#09090b;color:#fafafa;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;overflow:hidden;position:relative}.blob{position:absolute;border-radius:50%;filter:blur(80px);z-index:-1;opacity:0.5}.b1{width:300px;height:300px;background:radial-gradient(circle,#c1939b 0%,transparent 70%);top:-50px;left:-50px}.b2{width:400px;height:400px;background:radial-gradient(circle,#ebb5b2 0%,transparent 70%);bottom:-100px;right:-100px}.c{background:rgba(24,24,27,0.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:48px 32px;text-align:center;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);z-index:10;max-width:400px}h2{color:${isError ? '#ef4444' : '#c1939b'};margin-top:0;font-size:1.5rem}p{color:#a1a1aa;line-height:1.6}.close{font-size:13px;color:#71717a;margin-top:24px}</style></head><body><div class="blob b1"></div><div class="blob b2"></div><div class="c"><h2>${isError ? '❌' : '✅'} ${title}</h2><p>${subtitle}</p><p class="close">这个页面可以安全退出了</p></div></body></html>`;
 
-      if (!state) return new Response('No state', { status: 400 });
+      if (!state) return new Response(renderAuthUI('参数错误', '缺少 state 参数。', true), { status: 400, headers: {'Content-Type':'text/html; charset=utf-8'} });
       const sessionId = await env.AGENT_STATE.get('oauth_state:' + state);
-      if (!sessionId) return new Response('<h2>❌ Session not found</h2>', { status: 400, headers: {'Content-Type':'text/html'} });
+      if (!sessionId) return new Response(renderAuthUI('授权过期', 'Session 已失效，请回向导页重试。', true), { status: 400, headers: {'Content-Type':'text/html; charset=utf-8'} });
       
       const sessionRaw = await env.AGENT_STATE.get('oauth:' + sessionId);
-      if (!sessionRaw) return new Response('<h2>❌ Session not found</h2>', { status: 400, headers: {'Content-Type':'text/html'} });
+      if (!sessionRaw) return new Response(renderAuthUI('授权过期', 'Session 已失效，请回向导页重试。', true), { status: 400, headers: {'Content-Type':'text/html; charset=utf-8'} });
       const session = JSON.parse(sessionRaw);
 
       if (error) {
         session.status = 'error'; session.error = error;
         await env.AGENT_STATE.put('oauth:' + sessionId, JSON.stringify(session), { expirationTtl: 600 });
-        return new Response('<h2>❌ Authorization denied. You can close this tab.</h2>', { headers: {'Content-Type':'text/html'} });
+        return new Response(renderAuthUI('授权被拒', '您已拒绝授权，请关闭此页。', true), { headers: {'Content-Type':'text/html; charset=utf-8'} });
       }
 
       const creds = btoa(`${env.X_CLIENT_ID}:${env.X_CLIENT_SECRET}`);
@@ -167,7 +167,7 @@ export default {
       if (!tokenRes.ok || !data.access_token) {
         session.status = 'error'; session.error = JSON.stringify(data);
         await env.AGENT_STATE.put('oauth:' + sessionId, JSON.stringify(session), { expirationTtl: 600 });
-        return new Response('<h2>❌ Token exchange failed.</h2>', { status: 500, headers: {'Content-Type':'text/html'} });
+        return new Response(renderAuthUI('获取令牌失败', '与 X API 交换凭据失败，请重试。', true), { status: 500, headers: {'Content-Type':'text/html; charset=utf-8'} });
       }
 
       session.status = 'done';
@@ -175,7 +175,7 @@ export default {
       session.refreshToken = data.refresh_token;
       await env.AGENT_STATE.put('oauth:' + sessionId, JSON.stringify(session), { expirationTtl: 600 });
 
-      return new Response(successPage, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+      return new Response(renderAuthUI('授权成功', '您的 X 账号已成功关联。请回到原部署向导页。'), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     }
 
     if (pathname === '/api/oauth/refresh' && method === 'POST') {
