@@ -330,7 +330,7 @@ $('oauthBtn').addEventListener('click', async () => {
   }, 1000);
 
   oauthPollTimer = setInterval(async () => {
-    const res = await api('/api/oauth/poll?sessionId=' + encodeURIComponent(r.sessionId));
+    const res = await api('/api/oauth/result?sessionId=' + encodeURIComponent(r.sessionId));
     if (res.status === 'done') {
       clearInterval(oauthPollTimer);
       clearInterval(checkClosedTimer);
