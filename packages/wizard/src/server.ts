@@ -309,7 +309,8 @@ app.get('/api/models', async (req: Request, res: Response) => {
   try {
     const ai = new GoogleGenAI({ apiKey: key });
     const models: string[] = [];
-    for await (const m of ai.models.list()) {
+    const pager = await ai.models.list();
+    for await (const m of pager) {
       const name = m.name ?? '';
       // Only include models that support generateContent
       const supported = m.supportedActions ?? (m as Record<string, unknown>)['supportedGenerationMethods'] ?? [];
