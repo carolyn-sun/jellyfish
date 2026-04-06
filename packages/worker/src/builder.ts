@@ -32,6 +32,7 @@ export async function distillSkillFromTweets(
   tweetsByAccount: Record<string, string[]>,
   geminiApiKey: string,
   geminiModel: string,
+  promptLang: string = 'zh'
 ): Promise<string> {
   const ai = new GoogleGenAI({ apiKey: geminiApiKey });
   const blocks = Object.entries(tweetsByAccount)
@@ -43,10 +44,12 @@ export async function distillSkillFromTweets(
 - **Core Traits**: 3–6 personality bullet points.
 - **Ideological Framework**: Beliefs, values, stances.
 - **Tone & Voice**: Vocabulary, sentence patterns, quirks, code-switching habits.
-- **Constraints**: AI behavioral rules (reply length, hashtags, when to output <skip>).
+- Constraints: AI behavioral rules (reply length, hashtags, when to output <skip>).
 
 Source tweets:
 ${blocks}
+
+IMPORTANT: You MUST generate the final persona document ENTIRELY in ${promptLang === 'en' ? 'English' : 'Simplified Chinese (中文)'}.
 
 Generate the persona.skill document now:`;
 

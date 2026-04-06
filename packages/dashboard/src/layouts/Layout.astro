@@ -134,7 +134,6 @@ const { title } = Astro.props;
     overflow: hidden;
   }
 
-  /* Form Elements */
   input[type="text"],
   input[type="number"],
   input[type="password"],
@@ -150,6 +149,12 @@ const { title } = Astro.props;
     font-family: inherit;
     transition: all 0.2s ease;
     margin-top: 8px;
+    height: 48px;
+  }
+
+  textarea {
+    height: auto;
+    min-height: 120px;
   }
 
   input:focus, select:focus, textarea:focus {
@@ -182,7 +187,8 @@ const { title } = Astro.props;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 12px 24px;
+    height: 48px;
+    padding: 0 24px;
     border-radius: 12px;
     font-weight: 600;
     font-size: 1rem;
@@ -190,6 +196,7 @@ const { title } = Astro.props;
     transition: all 0.2s ease;
     border: none;
     font-family: inherit;
+    white-space: nowrap;
   }
 
   .btn-primary {
