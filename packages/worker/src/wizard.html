@@ -637,39 +637,19 @@ async function saveAndDeploy() {
 
   go(8);
   $('deployInfo').innerHTML = `
-    <div class="alert alert-success show" style="margin-bottom:20px">
-      🎉 配置文件已生成！
+    <div class="alert alert-success show" style="margin-bottom:20px; border-color: #34d399; background: rgba(52, 211, 153, 0.1);">
+      <h3 style="color:#34d399; margin-bottom: 10px;">🎉 Agent 已成功创建！</h3>
+      <p style="color:#a78bfa; font-size: 14px;">您的 AI 分身已经成功上线，目前正运行在 Cloudflare 生态网络上。</p>
     </div>
-    <h3 class="section">生成的文件</h3>
-    <ul style="color:var(--muted);font-size:14px;line-height:2;padding-left:20px">
-      <li><code style="color:#a78bfa">${r.configPath}</code></li>
-      <li><code style="color:#a78bfa">${r.skillPath}</code></li>
-      <li><code style="color:#a78bfa">${r.devVarsPath}</code> <span style="font-size:12px">(含所有 Secrets，请勿提交)</span></li>
-    </ul>
-    <h3 class="section">部署步骤</h3>
-    <div class="code">cd packages/worker
-
-# 1. 创建 KV 命名空间
-npx wrangler kv namespace create AGENT_STATE
-# → 将输出的 id 填入 wrangler.toml
-
-# 2. 写入初始 persona.skill
-npx wrangler kv key put --binding=AGENT_STATE agent:skill "$(cat generated/persona.skill)"
-
-# 3. 设置 Secrets
-npx wrangler secret put GEMINI_API_KEY
-npx wrangler secret put X_CLIENT_ID
-npx wrangler secret put X_CLIENT_SECRET
-npx wrangler secret put X_REFRESH_TOKEN
-npx wrangler secret put ADMIN_SECRET
-# ADMIN_SECRET 值：${r.adminSecret}
-
-# 4. 部署
-npx wrangler deploy</div>
-    <div style="margin-top:16px" class="alert alert-info show">
-      💡 重新授权（不重跑向导）：<br>
-      <code style="font-size:12px">X_CLIENT_ID=xxx X_CLIENT_SECRET=yyy node packages/worker/scripts/oauth-setup.mjs</code>
-    </div>`;
+    
+    <div style="text-align: center; margin-top: 40px; padding: 30px; background: #0f0f1a; border-radius: 12px; border: 1px solid #1e1e2e;">
+      <h3 style="margin-bottom: 20px; font-weight: 500; font-size: 1.1rem; color: #e2e8f0;">前往管理面板进行互动和监控</h3>
+      <a href="\${r.redirect}" class="btn btn-primary" style="padding: 12px 30px; font-size: 1.1rem;">
+        进入 Agent Dashboard →
+      </a>
+      <p style="margin-top: 15px; color: #64748b; font-size: 0.85rem;">请保存好上方的面板链接（包含 Tenant ID），这是管理该 Agent 的唯一入口。</p>
+    </div>
+  `;
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────

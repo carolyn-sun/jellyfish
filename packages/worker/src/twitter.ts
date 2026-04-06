@@ -140,7 +140,7 @@ export async function getTweetLookup(env: Env, agent: AgentDbRecord, tweetId: st
 }
 
 export async function getTweet(env: Env, agent: AgentDbRecord, tweetId: string): Promise<XTweet | null> {
-  const json = await getTweetLookup(env, tweetId);
+  const json = await getTweetLookup(env, agent, tweetId);
   return json?.data ?? null;
 }
 
@@ -160,7 +160,7 @@ export async function fetchThreadContext(
     const parentRef = current.referenced_tweets?.find(r => r.type === 'replied_to');
     if (!parentRef) break;
 
-    const parentLookup = await getTweetLookup(env, parentRef.id);
+    const parentLookup = await getTweetLookup(env, agent, parentRef.id);
     if (!parentLookup?.data) break;
 
     const parent = parentLookup.data;

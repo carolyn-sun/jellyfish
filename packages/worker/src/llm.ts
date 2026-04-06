@@ -1,7 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { Content } from '@google/genai';
 import type { Env, AgentDbRecord, ConversationTurn, XTweet, InteractionMemory, VipEntry } from './types.ts';
-import { getSkill } from './memory.ts';
 
 // ─── Create a per-request GenAI client ────────────────────────────────────────
 function getClient(agent: AgentDbRecord): GoogleGenAI {
@@ -106,7 +105,7 @@ export async function generateReply(
   thread: ConversationTurn[],
   ownUserId: string,
 ): Promise<string> {
-  const skill = await getSkill(env, agent.id);
+  const skill = agent.skill_text;
 
   const contents = buildContents(thread, ownUserId);
 
@@ -132,7 +131,7 @@ export async function generateSpontaneousTweet(
   agent: AgentDbRecord,
   recentPosts: string[] = [],
 ): Promise<string> {
-  const skill = await getSkill(env, agent.id);
+  const skill = agent.skill_text;
 
   const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
   const seeds = [
@@ -167,7 +166,7 @@ export async function evaluateTimelineTweet(
   authorUsername: string,
   replies: Array<{ authorUsername: string; text: string }> = [],
 ): Promise<string> {
-  const skill = await getSkill(env, agent.id);
+  const skill = agent.skill_text;
   const vip = resolveVip(agent, authorUsername);
   const overrideInstruction = buildTimelineOverride(agent, vip);
 

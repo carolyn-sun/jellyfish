@@ -8,7 +8,6 @@
     "wizard": "pnpm --filter wizard start",
     "dev": "pnpm --filter worker wrangler dev",
     "deploy": "pnpm --filter worker wrangler deploy",
-    "typecheck": "pnpm --filter wizard tsc --noEmit && pnpm --filter worker tsc --noEmit"
+    "typecheck": "pnpm --filter worker run typecheck"
   }
 }
-

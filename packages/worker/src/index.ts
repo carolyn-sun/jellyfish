@@ -1,45 +1,55 @@
-import type { Env } from './types.ts';
+import type { Env, AgentDbRecord } from './types.ts';
 import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRefresh, runNightlyEvolution } from './agent.ts';
 import { getMe, getUserByUsername, getUserTweets } from './twitter.ts';
-import { getSkill, saveSkill, getLastMentionId, getCachedOwnUserId, getInteractionsMemory, getActivityLog } from './memory.ts';
-import { agentConfig } from './config.ts';
+import { getLastMentionId, getCachedOwnUserId, getInteractionsMemory, getActivityLog } from './memory.ts';
+import { GoogleGenAI } from '@google/genai';
+import { fetchSourceTweets, distillSkillFromTweets, genSample, refineSkill } from './builder.ts';
+import wizardHtml from './wizard.html';
+
+async function getAllActiveAgents(env: Env): Promise<AgentDbRecord[]> {
+  const { results } = await env.DB.prepare('SELECT * FROM agents WHERE status = "active"').all();
+  if (!results) return [];
+  return results.map(row => ({
+    ...row,
+    source_accounts: JSON.parse((row.source_accounts as string) || '[]'),
+    vip_list: JSON.parse((row.vip_list as string) || '[]'),
+    mem_whitelist: (row.mem_whitelist === 'all' ? 'all' : JSON.parse((row.mem_whitelist as string) || '[]'))
+  })) as unknown as AgentDbRecord[];
+}
 
 export default {
   // ── Cron Triggers ────────────────────────────────────────────────────────────
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const cron = controller.cron;
-    console.log(`[worker] Cron triggered: ${cron}`);
+    console.log(`[worker] Cron triggered globally: ${cron}`);
 
-    const schedules = agentConfig.cronSchedules;
+    const agents = await getAllActiveAgents(env);
+    console.log(`[worker] Executing for ${agents.length} active agents.`);
 
-    if (cron === schedules.mentionPoll) {
-      // Loop 4 times for sub-minute polling (every ~15 seconds within the 1-min window)
-      ctx.waitUntil((async () => {
-        for (let i = 0; i < 4; i++) {
-          const runStart = Date.now();
-          await runMentionLoop(env).catch(e => console.error('[worker] mention loop error:', e));
-          const elapsed = Date.now() - runStart;
-          const remaining = 15000 - elapsed;
-          if (i < 3 && remaining > 0) {
-            await new Promise(r => setTimeout(r, remaining));
+    for (const agent of agents) {
+      if (cron === '* * * * *') {
+        ctx.waitUntil((async () => {
+          for (let i = 0; i < 4; i++) {
+            const runStart = Date.now();
+            await runMentionLoop(env, agent).catch(e => console.error(`[worker] mention loop error for ${agent.id}:`, e));
+            const elapsed = Date.now() - runStart;
+            const remaining = 15000 - elapsed;
+            if (i < 3 && remaining > 0) {
+              await new Promise(r => setTimeout(r, remaining));
+            }
           }
-        }
-      })());
-
-    } else if (cron === schedules.timelineEngagement) {
-      ctx.waitUntil(runTimelineEngagement(env));
-
-    } else if (cron === schedules.spontaneous) {
-      ctx.waitUntil(runSpontaneousTweet(env));
-
-    } else if (cron === schedules.memoryRefresh) {
-      ctx.waitUntil(runMemoryRefresh(env).catch(e => console.error('[worker] memory refresh error:', e)));
-
-    } else if (cron === schedules.nightlyEvolution) {
-      ctx.waitUntil(runNightlyEvolution(env).catch(e => console.error('[worker] nightly evolution error:', e)));
-
-    } else {
-      console.warn(`[worker] Unknown cron pattern: ${cron}. Check cronSchedules in config.json matches wrangler.toml.`);
+        })());
+      } else if (cron === '0 * * * *') {
+        ctx.waitUntil(runTimelineEngagement(env, agent).catch(e => console.error(`[worker] timeline error for ${agent.id}:`, e)));
+      } else if (cron === '30 12 * * *') {
+        ctx.waitUntil(runSpontaneousTweet(env, agent).catch(e => console.error(`[worker] spontaneous error for ${agent.id}:`, e)));
+      } else if (cron === '0 */6 * * *') {
+        ctx.waitUntil(runMemoryRefresh(env, agent).catch(e => console.error(`[worker] memory refresh error for ${agent.id}:`, e)));
+      } else if (cron === '0 3 * * *') {
+        ctx.waitUntil(runNightlyEvolution(env, agent).catch(e => console.error(`[worker] nightly evolution error for ${agent.id}:`, e)));
+      } else {
+        console.warn(`[worker] Unknown cron pattern: ${cron}.`);
+      }
     }
   },
 
@@ -49,23 +59,224 @@ export default {
     const method = request.method;
     const pathname = url.pathname.replace(/\/$/, '') || '/';
 
-    // ── Admin Dashboard ────────────────────────────────────────────────────────
+    // CORS preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        }
+      });
+    }
 
+    const corsHeaders = { "Access-Control-Allow-Origin": "*" };
+    const json = (data: unknown, status = 200) => new Response(JSON.stringify(data, null, 2), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+
+    // ── Platform Onboarding Wizard ─────────────────────────────────────────────
     if (pathname === '/' && method === 'GET') {
-      if (!isAdmin(request, env)) {
-        return new Response('Unauthorized — append ?secret=YOUR_SECRET to the URL', { status: 401 });
+      return new Response(wizardHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    }
+
+    // ── Wizard API Endpoints ───────────────────────────────────────────────────
+
+    if (pathname === '/api/oauth/start' && method === 'POST') {
+      const sessionId = crypto.randomUUID();
+      const codeVerifier = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, ''); // 64 chars
+      
+      const encoder = new TextEncoder();
+      const data = encoder.encode(codeVerifier);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const codeChallenge = btoa(String.fromCharCode.apply(null, hashArray)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      
+      const state = crypto.randomUUID().replace(/-/g, '');
+
+      const authUrl = new URL('https://twitter.com/i/oauth2/authorize');
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('client_id', env.X_CLIENT_ID);
+      authUrl.searchParams.set('redirect_uri', url.origin + '/callback');
+      authUrl.searchParams.set('scope', 'tweet.read tweet.write users.read offline.access');
+      authUrl.searchParams.set('state', state);
+      authUrl.searchParams.set('code_challenge', codeChallenge);
+      authUrl.searchParams.set('code_challenge_method', 'S256');
+
+      const sessionData = { state, codeVerifier, status: 'pending' };
+      await env.AGENT_STATE.put('oauth:' + sessionId, JSON.stringify(sessionData), { expirationTtl: 600 });
+      await env.AGENT_STATE.put('oauth_state:' + state, sessionId, { expirationTtl: 600 });
+      
+      return json({ sessionId, authUrl: authUrl.toString() });
+    }
+
+    if (pathname === '/api/oauth/result' && method === 'GET') {
+      const sessionId = url.searchParams.get('sessionId');
+      if (!sessionId) return json({ error: 'No sessionId' }, 400);
+      const sessionRaw = await env.AGENT_STATE.get('oauth:' + sessionId);
+      if (!sessionRaw) return json({ error: 'Session not found/expired' }, 404);
+      const session = JSON.parse(sessionRaw);
+      return json(session);
+    }
+
+    // OAuth Callback endpoint (Browser redirected here from X)
+    if (pathname === '/callback' && method === 'GET') {
+      const code = url.searchParams.get('code');
+      const state = url.searchParams.get('state');
+      const error = url.searchParams.get('error');
+
+      const successPage = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>授权成功</title><style>body{font-family:system-ui;background:#0a0a0f;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}.c{background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);border-radius:16px;padding:48px;text-align:center}h2{color:#8b5cf6}p{color:#94a3b8}</style></head><body><div class="c"><h2>✅ 授权成功！</h2><p>请回到向导页面继续操作。</p><p style="font-size:13px;color:#64748b">这个页面可以关闭了。</p></div></body></html>`;
+
+      if (!state) return new Response('No state', { status: 400 });
+      const sessionId = await env.AGENT_STATE.get('oauth_state:' + state);
+      if (!sessionId) return new Response('<h2>❌ Session not found</h2>', { status: 400, headers: {'Content-Type':'text/html'} });
+      
+      const sessionRaw = await env.AGENT_STATE.get('oauth:' + sessionId);
+      if (!sessionRaw) return new Response('<h2>❌ Session not found</h2>', { status: 400, headers: {'Content-Type':'text/html'} });
+      const session = JSON.parse(sessionRaw);
+
+      if (error) {
+        session.status = 'error'; session.error = error;
+        await env.AGENT_STATE.put('oauth:' + sessionId, JSON.stringify(session), { expirationTtl: 600 });
+        return new Response('<h2>❌ Authorization denied. You can close this tab.</h2>', { headers: {'Content-Type':'text/html'} });
       }
-      const s = encodeURIComponent(url.searchParams.get('secret') ?? '');
+
+      const creds = btoa(`${env.X_CLIENT_ID}:${env.X_CLIENT_SECRET}`);
+      const tokenRes = await fetch('https://api.twitter.com/2/oauth2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Basic ${creds}` },
+        body: new URLSearchParams({
+          code: code || '', grant_type: 'authorization_code', redirect_uri: (new URL(request.url)).origin + '/callback',
+          code_verifier: session.codeVerifier, client_id: env.X_CLIENT_ID,
+        }).toString(),
+      });
+      const data = await tokenRes.json() as any;
+      if (!tokenRes.ok || !data.access_token) {
+        session.status = 'error'; session.error = JSON.stringify(data);
+        await env.AGENT_STATE.put('oauth:' + sessionId, JSON.stringify(session), { expirationTtl: 600 });
+        return new Response('<h2>❌ Token exchange failed.</h2>', { status: 500, headers: {'Content-Type':'text/html'} });
+      }
+
+      session.status = 'done';
+      session.accessToken = data.access_token;
+      session.refreshToken = data.refresh_token;
+      await env.AGENT_STATE.put('oauth:' + sessionId, JSON.stringify(session), { expirationTtl: 600 });
+
+      return new Response(successPage, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    }
+
+    if (pathname === '/api/oauth/refresh' && method === 'POST') {
+      try {
+        const reqJson = await request.json() as any;
+        const refreshToken = reqJson.refreshToken;
+        const creds = btoa(`${env.X_CLIENT_ID}:${env.X_CLIENT_SECRET}`);
+        const resTok = await fetch('https://api.twitter.com/2/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Basic ${creds}` },
+          body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken || '', client_id: env.X_CLIENT_ID }).toString(),
+        });
+        const data = await resTok.json() as { access_token?: string; error?: string };
+        if (!resTok.ok || !data.access_token) throw new Error(`Token refresh failed: ${JSON.stringify(data)}`);
+        return json({ accessToken: data.access_token });
+      } catch (err) { return json({ error: String(err) }, 400); }
+    }
+
+    if (pathname === '/api/distill' && method === 'POST') {
+      try {
+        const reqJson = await request.json() as any;
+        const { sourceAccounts, accessToken, geminiApiKey, geminiModel } = reqJson;
+        const tweetsByAccount = await fetchSourceTweets(sourceAccounts, accessToken);
+        const accountCount = Object.keys(tweetsByAccount).length;
+        if (accountCount === 0) return json({ error: 'No tweets fetched. Check accounts/token.' }, 400);
+        
+        const skill = await distillSkillFromTweets(tweetsByAccount, geminiApiKey, geminiModel);
+        const fetched: Record<string, number> = {};
+        for (const [k, v] of Object.entries(tweetsByAccount)) fetched[k] = v.length;
+        return json({ skill, fetched });
+      } catch (err) { return json({ error: String(err) }, 500); }
+    }
+
+    if (pathname === '/api/tune/sample' && method === 'POST') {
+      try {
+        const reqJson = await request.json() as any;
+        const { skill, geminiApiKey, geminiModel } = reqJson;
+        return json(await genSample(skill, geminiApiKey, geminiModel));
+      } catch (err) { return json({ error: String(err) }, 500); }
+    }
+
+    if (pathname === '/api/tune/refine' && method === 'POST') {
+      try {
+        const reqJson = await request.json() as any;
+        const { skill, feedback, geminiApiKey, geminiModel } = reqJson;
+        return json({ skill: await refineSkill(skill, feedback, geminiApiKey, geminiModel) });
+      } catch (err) { return json({ error: String(err) }, 500); }
+    }
+
+    if (pathname === '/api/models' && method === 'GET') {
+      const key = url.searchParams.get('key');
+      if (!key) return json({ error: 'Missing key' }, 400);
+      try {
+        const ai = new GoogleGenAI({ apiKey: key });
+        const models: string[] = [];
+        const pager = await ai.models.list();
+        for await (const m of pager) {
+          const name = m.name ?? '';
+          if (name.includes('gemini')) {
+            models.push(name.replace(/^models\//, ''));
+          }
+        }
+        resSortModelsList(models);
+        return json({ models });
+      } catch (err) { return json({ error: String(err) }, 400); }
+    }
+
+    if (pathname === '/api/save' && method === 'POST') {
+      try {
+        const reqJson = await request.json() as any;
+        const config = reqJson.config;
+        const skill = reqJson.skill;
+        const refreshToken = reqJson.refreshToken;
+        const geminiApiKey = reqJson.geminiApiKey;
+
+        const agentId = crypto.randomUUID();
+        const ownerId = "public"; // Currently placeholder until auth wrapper 
+
+        await env.DB.prepare(`
+          INSERT INTO agents (
+            id, owner_id, agent_name, agent_handle, source_accounts, gemini_model, gemini_api_key, 
+            refresh_token, access_token, token_expires_at, skill_text, reply_pct, like_pct, 
+            cooldown_days, auto_evo, vip_list, mem_whitelist, created_at, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, null, 0, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+        `).bind(
+          agentId, ownerId, config.agentName, config.agentHandle, JSON.stringify(config.sourceAccounts), config.geminiModel, geminiApiKey,
+          refreshToken, skill, config.defaultReplyProbability, config.defaultLikeProbability,
+          config.spontaneousCooldownDays, config.enableNightlyEvolution ? 1 : 0, 
+          JSON.stringify(config.vipList), config.memoryWhitelist === 'all' ? 'all' : JSON.stringify(config.memoryWhitelist), Date.now()
+        ).run();
+
+        // return the dashboard link!
+        return json({ success: true, agentId, redirect: `/dashboard?id=${agentId}` });
+      } catch (err) { return json({ error: String(err) }, 500); }
+    }
+
+    // ── Admin Dashboard UI ────────────────────────────────────────────────────
+    if (pathname === '/dashboard' && method === 'GET') {
+      const agentId = url.searchParams.get('id');
+      if (!agentId) return new Response('Missing agent ID', { status: 400 });
+
+      // fetch agent metadata
+      const { results } = await env.DB.prepare('SELECT * FROM agents WHERE id = ?').bind(agentId).all();
+      if (!results || results.length === 0) return new Response('Agent not found', { status: 404 });
+      
+      const agent = results[0] as unknown as AgentDbRecord;
+      const vipList = typeof agent.vip_list === 'string' ? JSON.parse(agent.vip_list) : agent.vip_list;
+
       const base = url.origin;
-      const agentName = agentConfig.agentName;
-      const agentHandle = agentConfig.agentHandle;
 
       const html = `<!DOCTYPE html>
 <html lang="zh">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>${agentName} · Admin</title>
+  <title>${agent.agent_name} · Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -93,11 +304,11 @@ export default {
   </style>
 </head>
 <body>
-  <h1>🤖 ${agentName} · Admin<span class="badge">@${agentHandle}</span></h1>
-  <p class="sub">Agent Control Dashboard · ${base}</p>
+  <h1>🤖 ${agent.agent_name} · Admin<span class="badge">@${agent.agent_handle}</span></h1>
+  <p class="sub">Tenant ID: ${agent.id} · Powered by Cloudflare D1</p>
 
   <div class="vip-list">
-    VIPs: ${agentConfig.vipList.map(v => `<span class="vip-chip">@${v.username}${v.persona ? ` · ${v.persona}` : ''}</span>`).join('')}
+    VIPs: ${vipList.map((v: any) => `<span class="vip-chip">@${v.username}${v.persona ? ` · ${v.persona}` : ''}</span>`).join('')}
   </div>
   <br/>
 
@@ -105,66 +316,47 @@ export default {
     <div class="card">
       <h2>📬 回复提及</h2>
       <p>立即扫描新的 @mention 并生成回复（等同于 1 分钟内的循环）</p>
-      <a class="btn btn-primary" href="#" onclick="run('/trigger?secret=${s}');return false">立即触发</a>
+      <a class="btn btn-primary" href="#" onclick="run('/api/agent/trigger?id=${agentId}');return false">立即触发</a>
     </div>
 
     <div class="card">
       <h2>👀 刷时间线</h2>
       <p>扫描关注/粉丝列表，随机点赞或回复 2 条最新推文</p>
-      <a class="btn btn-primary" href="#" onclick="run('/trigger-timeline?secret=${s}');return false">浏览时间线</a>
+      <a class="btn btn-primary" href="#" onclick="run('/api/agent/trigger-timeline?id=${agentId}');return false">浏览时间线</a>
     </div>
 
     <div class="card">
       <h2>💬 自发推文</h2>
-      <p>随机生成并发布一条自发推文（${agentConfig.spontaneousCooldownDays} 天冷却；加 &force=true 强制）</p>
-      <a class="btn btn-primary" href="#" onclick="run('/spontaneous?secret=${s}');return false">发推文</a>
+      <p>随机生成并发布一条自发推文（${agent.cooldown_days} 天冷却）</p>
+      <a class="btn btn-primary" href="#" onclick="run('/api/agent/spontaneous?id=${agentId}');return false">发推文</a>
       &nbsp;
-      <a class="btn btn-secondary" href="#" onclick="run('/spontaneous?secret=${s}&force=true');return false">强制发</a>
-    </div>
-
-    <div class="card">
-      <h2>🎭 查看 Skill</h2>
-      <p>查看当前的人格配置底层 Skill（存储于 KV，可随时迭代进化）</p>
-      <a class="btn btn-secondary" target="_blank" href="${base}/skill?secret=${s}">查看</a>
+      <a class="btn btn-secondary" href="#" onclick="run('/api/agent/spontaneous?id=${agentId}&force=true');return false">强制发</a>
     </div>
 
     <div class="card">
       <h2>🧠 互动记忆</h2>
       <p>查看白名单用户塑造 Agent 的历史互动记录</p>
-      <a class="btn btn-secondary" target="_blank" href="${base}/memory?secret=${s}">查看记忆</a>
+      <a class="btn btn-secondary" target="_blank" href="${base}/api/agent/memory?id=${agentId}">查看记忆</a>
       &nbsp;
-      <a class="btn btn-primary" href="#" onclick="run('/refresh-memory?secret=${s}');return false">拉取最新</a>
+      <a class="btn btn-primary" href="#" onclick="run('/api/agent/refresh-memory?id=${agentId}');return false">拉取最新</a>
     </div>
 
     <div class="card" style="border-color:#7c3aed">
       <h2 style="color:#c084fc">🧬 人格演化</h2>
       <p>手动触发：吸收现有记忆彻底充实底仓性格（执行后清空现有记忆库）</p>
-      <a class="btn btn-purple" href="#" onclick="run('/evolve?secret=${s}');return false">强制重塑底层人格</a>
+      <a class="btn btn-purple" href="#" onclick="run('/api/agent/evolve?id=${agentId}');return false">强制重塑底层人格</a>
     </div>
 
     <div class="card">
       <h2>📊 Agent 状态</h2>
       <p>查看当前状态（last mention ID、config 信息等）</p>
-      <a class="btn btn-secondary" href="#" onclick="run('/status?secret=${s}');return false">查看</a>
+      <a class="btn btn-secondary" href="#" onclick="run('/api/agent/status?id=${agentId}');return false">查看</a>
     </div>
 
     <div class="card" style="border-color:#3b82f6">
       <h2 style="color:#60a5fa">📡 神经脉冲活动</h2>
       <p>雷达监控：查看 Agent 近期所有隐秘动作（阅读、点赞、回复、推文）</p>
-      <a class="btn btn-secondary" target="_blank" href="${base}/activity?secret=${s}">拉取监控日志</a>
-    </div>
-
-    <div class="card">
-      <h2>🐦 抓取推文</h2>
-      <p>抓取来源账号的原始推文（用于调试人格蒸馏）</p>
-      <a class="btn btn-secondary" href="#" onclick="run('/debug/tweets?secret=${s}&max=10');return false">抓取</a>
-    </div>
-
-    <div class="card wide">
-      <h2>🧪 模拟器 (Simulator)</h2>
-      <p>手动粘贴推文内容，测试 Agent 的文本反应（不上链、不发推，校验人设用）</p>
-      <textarea id="simText" rows="3" placeholder="在此处输入网友的推文或你想对 Agent 说的话..."></textarea>
-      <a class="btn btn-primary" href="#" onclick="runSim();return false">测试反应</a>
+      <a class="btn btn-secondary" target="_blank" href="${base}/api/agent/activity?id=${agentId}">拉取监控日志</a>
     </div>
   </div>
 
@@ -182,212 +374,67 @@ export default {
         catch { out.textContent = text; }
       } catch(e) { out.textContent = '❌ ' + e.message; }
     }
-
-    async function runSim() {
-      const text = document.getElementById('simText').value;
-      if(!text.trim()) return;
-      const out = document.getElementById('output');
-      out.style.display = 'block';
-      out.textContent = '⏳ 模拟思考中...';
-      try {
-        const res = await fetch('/simulate?secret=${s}', { method: 'POST', body: text });
-        const outText = await res.text();
-        out.textContent = '🤖 ${agentName}: ' + (outText || '(Empty response)');
-      } catch(e) { out.textContent = '❌ ' + e.message; }
-    }
   </script>
 </body>
 </html>`;
       return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     }
 
-    // GET /health
-    if (pathname === '/health' && method === 'GET') {
-      return json({ ok: true, ts: new Date().toISOString(), agent: agentConfig.agentName });
-    }
+    // ── Individual Agent Admin Actions ─────────────────────────────────────────
+    if (pathname.startsWith('/api/agent/')) {
+      const agentId = url.searchParams.get('id');
+      if (!agentId) return json({ error: 'Missing agent ID' }, 400);
 
-    // ── Admin routes (require X-Admin-Secret header or ?secret= param) ─────────
+      const agentRaw = await env.DB.prepare('SELECT * FROM agents WHERE id = ?').bind(agentId).all();
+      if (!agentRaw.results || agentRaw.results.length === 0) return json({ error: 'Agent not found' }, 404);
+      const row = agentRaw.results[0] as Record<string, unknown>;
+      const agent: AgentDbRecord = {
+        ...row,
+        source_accounts: JSON.parse((row.source_accounts as string) || '[]'),
+        vip_list: JSON.parse((row.vip_list as string) || '[]'),
+        mem_whitelist: (row.mem_whitelist === 'all' ? 'all' : JSON.parse((row.mem_whitelist as string) || '[]'))
+      } as unknown as AgentDbRecord;
 
-    if (pathname === '/me' && method === 'GET') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const me = await getMe(env);
-      return json({ user: me });
-    }
-
-    if (pathname === '/status' && method === 'GET') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const lastMentionId = await getLastMentionId(env);
-      return json({
-        agentName: agentConfig.agentName,
-        agentHandle: agentConfig.agentHandle,
-        lastMentionId,
-        vipCount: agentConfig.vipList.length,
-        memoryWhitelist: agentConfig.memoryWhitelist,
-        spontaneousCooldownDays: agentConfig.spontaneousCooldownDays,
-      });
-    }
-
-    if (pathname === '/skill' && method === 'GET') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const skill = await getSkill(env);
-      return new Response(skill, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
-    }
-
-    if (pathname === '/skill' && method === 'PUT') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const body = await request.text();
-      if (!body.trim()) return json({ error: 'Skill content must not be empty' }, 400);
-      await saveSkill(env, body.trim());
-      return json({ ok: true, length: body.trim().length });
-    }
-
-    if (pathname === '/memory' && method === 'GET') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const memory = await getInteractionsMemory(env);
-      return json(memory);
-    }
-
-    if (pathname === '/activity' && method === 'GET') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const logs = await getActivityLog(env);
-      return json(logs);
-    }
-
-    if (pathname === '/refresh-memory' && (method === 'GET' || method === 'POST')) {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      try {
-        const result = await runMemoryRefresh(env);
-        return json({ ok: true, ...result });
-      } catch (err) {
-        return json({ ok: false, error: String(err) }, 500);
+      if (pathname === '/api/agent/status') {
+        const lastMentionId = await getLastMentionId(env, agentId);
+        return json({ agentName: agent.agent_name, lastMentionId, autoEvo: agent.auto_evo });
       }
-    }
-
-    if (pathname === '/evolve' && (method === 'GET' || method === 'POST')) {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      try {
-        const result = await runNightlyEvolution(env);
-        return json({ ok: true, ...result });
-      } catch (err) {
-        return json({ ok: false, error: String(err) }, 500);
+      if (pathname === '/api/agent/activity') {
+        return json(await getActivityLog(env, agentId));
       }
-    }
-
-    if (pathname === '/trigger' && (method === 'GET' || method === 'POST')) {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      try {
-        const result = await runMentionLoop(env);
-        return json({ ok: true, result });
-      } catch (err) {
-        return json({ ok: false, error: String(err) }, 500);
+      if (pathname === '/api/agent/memory') {
+        return json(await getInteractionsMemory(env, agentId));
       }
-    }
-
-    if (pathname === '/trigger-timeline' && (method === 'GET' || method === 'POST')) {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      try {
-        const result = await runTimelineEngagement(env);
-        return json({ ok: true, result });
-      } catch (err) {
-        return json({ ok: false, error: String(err) }, 500);
+      if (pathname === '/api/agent/refresh-memory') {
+        try { return json({ ok: true, ...(await runMemoryRefresh(env, agent)) }); } catch (err) { return json({ ok: false, error: String(err) }, 500); }
       }
-    }
-
-    if (pathname === '/spontaneous' && (method === 'GET' || method === 'POST')) {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const force = url.searchParams.get('force') === 'true';
-      try {
-        const result = await runSpontaneousTweet(env, force);
-        return json({ ok: true, ...result });
-      } catch (err) {
-        return json({ ok: false, error: String(err) }, 500);
+      if (pathname === '/api/agent/evolve') {
+        try { return json({ ok: true, ...(await runNightlyEvolution(env, agent)) }); } catch (err) { return json({ ok: false, error: String(err) }, 500); }
       }
-    }
-
-    if (pathname === '/simulate' && method === 'POST') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const text = await request.text();
-      if (!text.trim()) return json({ error: 'Empty text' }, 400);
-      try {
-        const { generateReply } = await import('./llm.ts');
-        const reply = await generateReply(env, [{ role: 'user', text, authorUsername: 'web_tester' }], 'none');
-        return new Response(reply, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
-      } catch (err) {
-        return json({ error: String(err) }, 500);
+      if (pathname === '/api/agent/trigger') {
+        try { return json({ ok: true, ...(await runMentionLoop(env, agent)) }); } catch (err) { return json({ ok: false, error: String(err) }, 500); }
       }
-    }
-
-    // ── Debug routes ───────────────────────────────────────────────────────────
-
-    if (pathname === '/debug/tweets' && method === 'GET') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const maxResults = Number(url.searchParams.get('max') ?? '30');
-      const result: Record<string, unknown> = { fetchedAt: new Date().toISOString(), accounts: {} };
-
-      for (const username of agentConfig.sourceAccounts) {
-        try {
-          const user = await getUserByUsername(env, username);
-          if (!user) {
-            (result['accounts'] as Record<string, unknown>)[username] = { error: 'User not found' };
-            continue;
-          }
-          const tweets = await getUserTweets(env, user.id, maxResults);
-          (result['accounts'] as Record<string, unknown>)[username] = { user, tweetCount: tweets.length, tweets };
-        } catch (err) {
-          (result['accounts'] as Record<string, unknown>)[username] = { error: String(err) };
-        }
+      if (pathname === '/api/agent/trigger-timeline') {
+        try { return json({ ok: true, ...(await runTimelineEngagement(env, agent)) }); } catch (err) { return json({ ok: false, error: String(err) }, 500); }
       }
-      return json(result);
+      if (pathname === '/api/agent/spontaneous') {
+        const force = url.searchParams.get('force') === 'true';
+        try { return json({ ok: true, ...(await runSpontaneousTweet(env, agent, force)) }); } catch (err) { return json({ ok: false, error: String(err) }, 500); }
+      }
+      return json({ error: 'Unknown agent action' }, 404);
     }
 
-    if (pathname === '/debug/tweet' && method === 'GET') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const tweetId = url.searchParams.get('id');
-      if (!tweetId) return json({ error: 'Missing id param' }, 400);
-      const { getTweet } = await import('./twitter.ts');
-      const tweet = await getTweet(env, tweetId);
-      return json({ tweet });
-    }
-
-    if (pathname === '/debug/mentions' && method === 'GET') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const { getMentions } = await import('./twitter.ts');
-      const ownUserId = await getCachedOwnUserId(env) ?? (await getMe(env)).id;
-      const sinceId = url.searchParams.get('since_id');
-      const mentions = await getMentions(env, ownUserId, sinceId ?? undefined);
-      return json(mentions);
-    }
-
-    if (pathname === '/debug/replied' && method === 'GET') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      const tweetId = url.searchParams.get('id');
-      if (!tweetId) return json({ error: 'Missing id param' }, 400);
-      const { hasReplied } = await import('./memory.ts');
-      const replied = await hasReplied(env, tweetId);
-      return json({ tweetId, replied });
-    }
-
-    if (pathname === '/debug/config' && method === 'GET') {
-      if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
-      return json({ config: agentConfig });
-    }
-
+    // Undefined route
     return json({ error: 'Not found' }, 404);
   },
 } satisfies ExportedHandler<Env>;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function isAdmin(request: Request, env: Env): boolean {
-  const url = new URL(request.url);
-  const headerSecret = request.headers.get('X-Admin-Secret');
-  const paramSecret = url.searchParams.get('secret');
-  return headerSecret === env.ADMIN_SECRET || paramSecret === env.ADMIN_SECRET;
-}
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
+function resSortModelsList(models: string[]) {
+  models.sort((a, b) => {
+    // Put 2.5 > 2.0 > 1.5; pro > flash > nano
+    const rank = (s: string) =>
+      (s.includes('2.5') ? 300 : s.includes('2.0') ? 200 : s.includes('1.5') ? 100 : 0) +
+      (s.includes('pro') ? 30 : s.includes('flash') ? 20 : s.includes('nano') ? 10 : 0);
+    return rank(b) - rank(a);
   });
 }
