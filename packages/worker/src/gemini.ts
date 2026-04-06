@@ -1,60 +1,88 @@
-import { createAiGateway } from 'ai-gateway-provider';
-import { createUnified } from 'ai-gateway-provider/providers/unified';
-import { generateText } from 'ai';
+// ─── Cloudflare AI Gateway → Google AI Studio REST client ──────────────────
+// Using direct fetch instead of ai-gateway-provider (which is incompatible with ai@6).
+// Reference: https://developers.cloudflare.com/ai-gateway/providers/google-ai-studio/
+// Endpoint: https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway}/google-ai-studio/v1/models/{model}:generateContent
 
 export interface GeminiContent {
   role: 'user' | 'model';
   parts: { text: string }[];
 }
 
-// 将 Gemini-style contents 转为 AI SDK messages 格式
-function contentsToMessages(contents: GeminiContent[]): { role: 'user' | 'assistant'; content: string }[] {
-  return contents.map(c => ({
-    role: c.role === 'model' ? 'assistant' : 'user',
-    content: c.parts.map(p => p.text).join(''),
-  }));
+interface GeminiConfig {
+  maxOutputTokens?: number;
+  temperature?: number;
 }
 
-// 构建 aigateway 实例（每次调用时根据 env 实时创建）
-function buildGateway(accountId: string, gateway: string, apiKey: string) {
-  return createAiGateway({ accountId, gateway, apiKey });
+interface GatewayConfig {
+  accountId: string;
+  gateway: string;
+  apiKey: string; // CF AI Gateway token (cf-aig-authorization)
 }
 
 export async function fetchGemini(
   model: string,
   contents: GeminiContent[],
   systemInstruction?: string,
-  config?: { maxOutputTokens?: number; temperature?: number },
-  _legacyApiKey?: string,   // 保留签名兼容性，已废弃
-  _legacyGatewayUrl?: string, // 保留签名兼容性，已废弃
-  // 新增：从 env 传入的 Gateway 参数
-  gatewayConfig?: { accountId: string; gateway: string; apiKey: string }
+  config?: GeminiConfig,
+  _legacyApiKey?: string,    // kept for signature compatibility, unused
+  _legacyGatewayUrl?: string, // kept for signature compatibility, unused
+  gatewayConfig?: GatewayConfig,
 ): Promise<string> {
   if (!gatewayConfig) {
     throw new Error('[gemini] gatewayConfig (accountId, gateway, apiKey) is required');
   }
 
-  const aigateway = buildGateway(gatewayConfig.accountId, gatewayConfig.gateway, gatewayConfig.apiKey);
-  const unified = createUnified();
+  // Strip optional "google/" prefix if caller added it
+  const modelId = model.startsWith('google/') ? model.slice('google/'.length) : model;
 
-  // 将 "gemini-2.5-pro-preview-03-25" 转换为 "google/gemini-2.5-pro-preview-03-25"
-  const modelPath = model.startsWith('google/') ? model : `google/${model}`;
+  const url = `https://gateway.ai.cloudflare.com/v1/${gatewayConfig.accountId}/${gatewayConfig.gateway}/google-ai-studio/v1beta/models/${modelId}:generateContent`;
 
-  const messages = contentsToMessages(contents);
+  const body: Record<string, unknown> = { contents };
 
-  const { text } = await generateText({
-    model: aigateway(unified(modelPath)),
-    system: systemInstruction,
-    messages,
-    maxOutputTokens: config?.maxOutputTokens,
-    temperature: config?.temperature,
+  if (systemInstruction) {
+    body.systemInstruction = {
+      parts: [{ text: systemInstruction }],
+    };
+  }
+
+  if (config?.maxOutputTokens !== undefined || config?.temperature !== undefined) {
+    const genConfig: Record<string, unknown> = {};
+    if (config.maxOutputTokens !== undefined) genConfig.maxOutputTokens = config.maxOutputTokens;
+    if (config.temperature !== undefined) genConfig.temperature = config.temperature;
+    body.generationConfig = genConfig;
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'cf-aig-authorization': `Bearer ${gatewayConfig.apiKey}`,
+    },
+    body: JSON.stringify(body),
   });
 
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '(no body)');
+    throw new Error(`[gemini] API error ${res.status}: ${errText}`);
+  }
+
+  const data = await res.json() as {
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+    }>;
+    error?: { message?: string };
+  };
+
+  if (data.error) {
+    throw new Error(`[gemini] API returned error: ${data.error.message}`);
+  }
+
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error('[gemini] Empty response from model');
   return text.trim();
 }
 
-// listGeminiModels 在 AI Gateway 方案下不需要枚举，返回固定推荐列表
+// listGeminiModels: returns a fixed recommended list (no enumeration needed via Gateway)
 export async function listGeminiModels(_apiKey?: string, _gatewayUrl?: string): Promise<string[]> {
   return [
     'gemini-2.5-pro-preview-03-25',

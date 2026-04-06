@@ -37,7 +37,7 @@ replacements = {
     "不含 @）</label>": "不含 @ / without @）</label>",
     "授权账号短柄：": "授权账号短柄 / Auth Account Handle: ",
     "逗号分隔，不含 @": "逗号分隔，不含 @ / comma separated, no @",
-    "例：amber_medusozoa": "例 / Example: amber_medusozoa",
+    "例：elonmusk": "例 / Example: elonmusk",
     "推文用于人格蒸馏。</p>": "推文用于人格蒸馏。 / Will fetch tweets from these accounts for persona distillation.</p>",
 
     # Step 4

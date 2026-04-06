@@ -259,10 +259,13 @@ export default {
         const config = reqJson.config;
         const skill = reqJson.skill;
         const refreshToken = reqJson.refreshToken;
-        const geminiApiKey = env.GEMINI_API_KEY || reqJson.geminiApiKey;
+        const geminiApiKey = env.GEMINI_API_KEY || reqJson.geminiApiKey || '';
 
         const agentId = crypto.randomUUID();
-        const ownerId = "public"; // Currently placeholder until auth wrapper 
+        const ownerId = "public";
+
+        const vipList = config.vipList ?? [];
+        const memWhitelist = config.memoryWhitelist ?? [];
 
         await env.DB.prepare(`
           INSERT INTO agents (
@@ -271,10 +274,21 @@ export default {
             cooldown_days, auto_evo, vip_list, mem_whitelist, created_at, status
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, null, 0, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
         `).bind(
-          agentId, ownerId, config.agentName, config.agentHandle, JSON.stringify(config.sourceAccounts), config.geminiModel, geminiApiKey,
-          refreshToken, skill, config.defaultReplyProbability, config.defaultLikeProbability,
-          config.spontaneousCooldownDays, config.enableNightlyEvolution ? 1 : 0, 
-          JSON.stringify(config.vipList), config.memoryWhitelist === 'all' ? 'all' : JSON.stringify(config.memoryWhitelist), Date.now()
+          agentId, ownerId,
+          config.agentName ?? '',
+          config.agentHandle ?? '',
+          JSON.stringify(config.sourceAccounts ?? []),
+          config.geminiModel ?? 'gemini-2.5-pro',
+          geminiApiKey,
+          refreshToken ?? '',
+          skill ?? '',
+          config.defaultReplyProbability ?? 0.2,
+          config.defaultLikeProbability ?? 0.8,
+          config.spontaneousCooldownDays ?? 3,
+          config.enableNightlyEvolution ? 1 : 0,
+          JSON.stringify(vipList),
+          memWhitelist === 'all' ? 'all' : JSON.stringify(memWhitelist),
+          Date.now()
         ).run();
 
         // return the dashboard link!

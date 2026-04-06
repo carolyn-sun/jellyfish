@@ -103,7 +103,7 @@ export async function generateReply(
 
   const systemInstruction = `${skill}\n\n【⚠️ 回复规则】\n作为一个社交能量极度匮乏的 AI 人格，你绝大部分时间都不想开口。\n面对别人的回复或提及，约 ${skipPct}% 的情况下你会选择"已读不回"（直接且仅仅输出 "<skip>"）。\n只有当遇到非常荒谬、触动你或不得不说的话题时，你才会回复。若要回复，文字必须极其简短干瘪。${overrideInstruction}`;
 
-  const text = await generate(env, agent, systemInstruction, contents, 2000, 1.1);
+  const text = await generate(env, agent, systemInstruction, contents, 4000, 1.1);
   return text.slice(0, 280);
 }
 
@@ -136,7 +136,7 @@ export async function generateSpontaneousTweet(
     parts: [{ text: `现在是 ${now}。请你以角色身份，围绕「${seed}」这个方向，自发地发一条推文。不要解释或重复这个方向，直接输出推文文字。文字必须极其简短干瘪，严格控制在 20 字以内。${antiRepeatBlock}` }],
   }];
 
-  const text = await generate(env, agent, skill, contents, 2000, 1.1);
+  const text = await generate(env, agent, skill, contents, 4000, 1.1);
   return text.slice(0, 280);
 }
 
@@ -181,7 +181,7 @@ export async function evaluateTimelineTweet(
     parts: [{ text: tweetBlock }],
   }];
 
-  const text = await generate(env, agent, systemInstruction, contents, 2000, 1.0);
+  const text = await generate(env, agent, systemInstruction, contents, 4000, 1.0);
   return text.trim();
 }
 
@@ -211,6 +211,6 @@ export async function evolvePersonalitySkill(
     parts: [{ text: contentText }],
   }];
 
-  const text = await generate(env, agent, systemInstruction, contents, 4000, 0.4);
+  const text = await generate(env, agent, systemInstruction, contents, 16000, 0.4);
   return text.trim();
 }

@@ -46,7 +46,7 @@ export async function distillSkillFromTweets(
     geminiModel,
     [{ role: 'user', parts: [{ text: prompt }] }],
     undefined,
-    { maxOutputTokens: 4000, temperature: 0.4 },
+    { maxOutputTokens: 16000, temperature: 0.4 },
     undefined,
     undefined,
     gatewayConfig,
@@ -54,7 +54,7 @@ export async function distillSkillFromTweets(
 }
 
 export async function genSample(skill: string, geminiModel: string, gatewayConfig: GatewayConfig) {
-  const cfg = (temp: number) => ({ maxOutputTokens: 200, temperature: temp });
+  const cfg = (temp: number) => ({ maxOutputTokens: 1000, temperature: temp });
   const [a, b] = await Promise.all([
     fetchGemini(geminiModel, [{ role: 'user', parts: [{ text: '请用这个人设发一条自发推文（20字以内，不要解释）：' }] }], skill, cfg(1.1), undefined, undefined, gatewayConfig),
     fetchGemini(geminiModel, [{ role: 'user', parts: [{ text: '[@stranger] 说了:\n这你们华人都是一个怎么想的？\n请用这个人设回复（可以输出 <skip>）：' }] }], skill, cfg(1.0), undefined, undefined, gatewayConfig),
@@ -72,7 +72,7 @@ export async function refineSkill(
     geminiModel,
     [{ role: 'user', parts: [{ text: prompt }] }],
     sysInst,
-    { maxOutputTokens: 4000, temperature: 0.4 },
+    { maxOutputTokens: 16000, temperature: 0.4 },
     undefined,
     undefined,
     gatewayConfig,

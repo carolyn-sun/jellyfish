@@ -1,5 +1,5 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="Another X Agent Setup">
@@ -7,473 +7,946 @@ import Layout from '../layouts/Layout.astro';
 
   <!-- Step 0: Mode Selection -->
   <div class="step-panel active" id="s0">
-    <h2><span class="lang-zh">🌟 欢迎</span><span class="lang-en">🌟 Welcome</span></h2>
-    <div class="subtitle"><span class="lang-zh">请选择您要进行的操作</span><span class="lang-en">Please select an operation</span></div>
+    <h2>
+      <span class="lang-zh">🌟 欢迎</span><span class="lang-en"
+        >🌟 Welcome</span>
+    </h2>
+    <div class="subtitle">
+      <span class="lang-zh">请选择您要进行的操作</span><span class="lang-en"
+        >Please select an operation</span>
+    </div>
     <div class="flex" style="flex-direction:column; gap:16px;">
-      <button class="btn btn-primary" id="modeCreateBtn" style="padding: 24px; font-size: 1.1rem; height: auto;"><span class="lang-zh block-lang">🤖 创建并部署全功能 Agent<br><span style='font-size:0.8rem; opacity:0.8; font-weight:normal; margin-top:8px; display:block;'>完整定型、配置概率并激活后台巡逻进程</span></span><span class="lang-en block-lang">🤖 Create & Deploy Agent<br><span style='font-size:0.8rem; opacity:0.8; font-weight:normal; margin-top:8px; display:block;'>Deploy active agent to background daemon</span></span></button>
-      <button class="btn btn-ghost" id="modeDistillBtn" style="padding: 24px; font-size: 1.1rem; border: 1px solid var(--primary); height: auto;"><span class="lang-zh block-lang">🔍 仅体验账号推文人格蒸馏<br><span style='font-size:0.8rem; opacity:0.8; font-weight:normal; margin-top:8px; display:block;'>免部署精简体验，提取任何人格化 Prompt</span></span><span class="lang-en block-lang">🔍 Distill Persona Only<br><span style='font-size:0.8rem; opacity:0.8; font-weight:normal; margin-top:8px; display:block;'>Distill persona system prompt only without deploying</span></span></button>
+      <button
+        class="btn btn-primary"
+        id="modeCreateBtn"
+        style="padding: 24px; font-size: 1.1rem; height: auto;"
+        ><span class="lang-zh block-lang"
+          >🤖 创建并部署全功能 Agent<br /><span
+            style="font-size:0.8rem; opacity:0.8; font-weight:normal; margin-top:8px; display:block;"
+            >完整定型、配置概率并激活后台巡逻进程</span
+          ></span
+        ><span class="lang-en block-lang"
+          >🤖 Create & Deploy Agent<br /><span
+            style="font-size:0.8rem; opacity:0.8; font-weight:normal; margin-top:8px; display:block;"
+            >Deploy active agent to background daemon</span
+          ></span
+        ></button
+      >
+      <button
+        class="btn btn-ghost"
+        id="modeDistillBtn"
+        style="padding: 24px; font-size: 1.1rem; border: 1px solid var(--primary); height: auto;"
+        ><span class="lang-zh block-lang"
+          >🔍 仅体验账号推文人格蒸馏<br /><span
+            style="font-size:0.8rem; opacity:0.8; font-weight:normal; margin-top:8px; display:block;"
+            >免部署精简体验，提取任何人格化 Prompt</span
+          ></span
+        ><span class="lang-en block-lang"
+          >🔍 Distill Persona Only<br /><span
+            style="font-size:0.8rem; opacity:0.8; font-weight:normal; margin-top:8px; display:block;"
+            >Distill persona system prompt only without deploying</span
+          ></span
+        ></button
+      >
+
+      <div
+        style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px;"
+      >
+        <div
+          style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;"
+        >
+          <span class="lang-zh">已有 Agent？直接进入控制台</span><span
+            class="lang-en">Already have an Agent? Go to Dashboard</span
+          >
+        </div>
+        <div class="flex" style="gap:8px; align-items:center;">
+          <input
+            type="text"
+            id="dashboardAgentId"
+            style="flex:1; margin-top:0;"
+            data-ph-zh="粘贴你的 Agent ID"
+            data-ph-en="Paste your Agent ID"
+            placeholder="粘贴你的 Agent ID"
+          />
+          <button
+            class="btn btn-ghost"
+            id="gotoDashboardBtn"
+            style="white-space:nowrap; margin-top:0; border: 1px solid var(--primary);"
+            ><span class="lang-zh">🚀 进入</span><span class="lang-en"
+              >🚀 Enter</span
+            ></button
+          >
+        </div>
+        <div
+          id="dashboardErr"
+          style="color:var(--error);font-size:0.8rem;margin-top:6px;display:none;"
+        >
+          <span class="lang-zh">请输入 Agent ID</span><span class="lang-en"
+            >Please enter an Agent ID</span>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- Step 1: Authorization -->
   <div class="step-panel" id="s1">
-    <h2><span class="lang-zh">🔐 X 账号授权</span><span class="lang-en">🔐 X Account Auth</span></h2>
-    <div class="subtitle"><span class="lang-zh">授权 Agent 的 X 账号，获取 Refresh Token。</span><span class="lang-en">Authorize Agent's X account to get Refresh Token.</span></div>
+    <h2>
+      <span class="lang-zh">🔐 X 账号授权</span><span class="lang-en"
+        >🔐 X Account Auth</span>
+    </h2>
+    <div class="subtitle">
+      <span class="lang-zh">授权 Agent 的 X 账号，获取 Refresh Token。</span
+      ><span class="lang-en"
+        >Authorize Agent's X account to get Refresh Token.</span>
+    </div>
 
     <div class="oauth-box">
-      <h3><span class="lang-zh">方式一：浏览器授权（推荐）</span><span class="lang-en">Method 1: Browser Auth (Recommended)</span></h3>
-      <p class="hint"><span class="lang-zh">确保 X App 的回调 URL 包含：</span><span class="lang-en">Ensure X App callback URL includes: </span><code id="cbHint" class="code-block"></code></p>
-      <button class="btn btn-primary w-full mt-4" id="oauthBtn">🔗 打开授权页面 / Open Auth Page</button>
+      <h3>
+        <span class="lang-zh">方式一：浏览器授权（推荐）</span><span
+          class="lang-en">Method 1: Browser Auth (Recommended)</span>
+      </h3>
+      <p class="hint">
+        <span class="lang-zh">确保 X App 的回调 URL 包含：</span><span
+          class="lang-en"
+          >Ensure X App callback URL includes:
+        </span><code id="cbHint" class="code-block"></code>
+      </p>
+      <button class="btn btn-primary w-full mt-4" id="oauthBtn"
+        >🔗 打开授权页面 / Open Auth Page</button
+      >
       <div class="oauth-status" id="oauthStatus" style="display:none">
-        <div class="dot-pulse"></div><span><span class="lang-zh">等待授权回调中……</span><span class="lang-en">Waiting for callback...</span></span>
+        <div class="dot-pulse"></div><span
+          ><span class="lang-zh">等待授权回调中……</span><span class="lang-en"
+            >Waiting for callback...</span
+          ></span
+        >
       </div>
-      <div id="oauthDone" class="alert alert-success"><span class="lang-zh">✅ 授权成功！Refresh Token 已获取。</span><span class="lang-en">✅ Auth Successful! Refresh Token obtained.</span></div>
+      <div id="oauthDone" class="alert alert-success">
+        <span class="lang-zh">✅ 授权成功！Refresh Token 已获取。</span><span
+          class="lang-en">✅ Auth Successful! Refresh Token obtained.</span>
+      </div>
     </div>
 
     <div class="oauth-box mt-4">
-      <h3><span class="lang-zh">方式二：跳过 — 已有 Refresh Token</span><span class="lang-en">Method 2: Skip — Already have Refresh Token</span></h3>
+      <h3>
+        <span class="lang-zh">方式二：跳过 — 已有 Refresh Token</span><span
+          class="lang-en">Method 2: Skip — Already have Refresh Token</span>
+      </h3>
       <label>Refresh Token</label>
-      <input type="password" id="manualRefresh" data-ph-zh="粘贴已有的 refresh_token" data-ph-en="Paste existing refresh_token" placeholder="粘贴已有的 refresh_token">
-      <button class="btn btn-ghost mt-4 w-full" id="useManualBtn"><span class="lang-zh">✓ 使用此 Token</span><span class="lang-en">✓ Use this Token</span></button>
-      <div id="manualDone" class="alert alert-success"><span class="lang-zh">✅ 已使用手动输入的 Token。</span><span class="lang-en">✅ Manual Token applied.</span></div>
+      <input
+        type="password"
+        id="manualRefresh"
+        data-ph-zh="粘贴已有的 refresh_token"
+        data-ph-en="Paste existing refresh_token"
+        placeholder="粘贴已有的 refresh_token"
+      />
+      <button class="btn btn-ghost mt-4 w-full" id="useManualBtn"
+        ><span class="lang-zh">✓ 使用此 Token</span><span class="lang-en"
+          >✓ Use this Token</span
+        ></button
+      >
+      <div id="manualDone" class="alert alert-success">
+        <span class="lang-zh">✅ 已使用手动输入的 Token。</span><span
+          class="lang-en">✅ Manual Token applied.</span>
+      </div>
     </div>
 
     <div id="err1" class="alert alert-error"></div>
     <div class="flex justify-between mt-8">
-      <button class="btn btn-ghost btn-back" data-step="0"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button>
-      <button class="btn btn-primary btn-next" id="s1next" data-step="3" disabled><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span></button>
+      <button class="btn btn-ghost btn-back" data-step="0"
+        ><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span
+        ></button
+      >
+      <button
+        class="btn btn-primary btn-next"
+        id="s1next"
+        data-step="3"
+        disabled
+        ><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span
+        ></button
+      >
     </div>
   </div>
 
   <!-- Step 3: Identity -->
   <div class="step-panel" id="s3">
-    <div id="s3Title"><h2><span class="lang-zh">🎭 Agent 身份</span><span class="lang-en">🎭 Agent Identity</span></h2></div>
-    <div id="s3Subtitle" class="subtitle">Agent 的<span class="lang-zh">核心身份信息已与您的授权 X 账号强绑定。</span><span class="lang-en">Agent core identity is securely bound.</span></div>
-    
-    <div id="identitySection">
-      <label><span class="lang-zh">展示名称</span><span class="lang-en">Display Name</span></label>
-      <p class="hint"><span class="lang-zh">授权账号昵称: </span><span class="lang-en">Auth Account Name: </span><span id="hintMyName"><span class="lang-zh">（正在获取...）</span><span class="lang-en">(fetching...)</span></span></p>
-      <input type="text" id="agentName" data-ph-zh="自动从您的身份提供者中读取" data-ph-en="Auto read from identity provider" placeholder="自动从您的身份提供者中读取" readonly disabled>
-      
-      <label><span class="lang-zh">X @handle（不含 @）</span><span class="lang-en">X @handle (without @)</span></label>
-      <p class="hint"><span class="lang-zh">授权账号短柄: </span><span class="lang-en">Auth Account Handle: </span><span id="hintMyHandle"><span class="lang-zh">（正在获取...）</span><span class="lang-en">(fetching...)</span></span></p>
-      <input type="text" id="agentHandle" data-ph-zh="自动从您的身份提供者中读取" data-ph-en="Auto read from identity provider" placeholder="自动从您的身份提供者中读取" readonly disabled>
+    <div id="s3Title">
+      <h2>
+        <span class="lang-zh">🎭 Agent 身份</span><span class="lang-en"
+          >🎭 Agent Identity</span>
+      </h2>
     </div>
-    
-    <label><span class="lang-zh">源账号（逗号分隔，不含 @）</span><span class="lang-en">Source Accounts (comma separated, no @)</span></label>
-    <input type="text" id="sourceAccounts" data-ph-zh="例: amber_medusozoa, elonmusk" data-ph-en="Example: amber_medusozoa, elonmusk" placeholder="例: amber_medusozoa, elonmusk">
-    <p class="hint"><span class="lang-zh">将抓取这些账号的推文用于人格蒸馏。</span><span class="lang-en">Will fetch tweets from these accounts for persona distillation.</span></p>
-    
+    <div id="s3Subtitle" class="subtitle">
+      Agent 的<span class="lang-zh"
+        >核心身份信息已与您的授权 X 账号强绑定。</span
+      ><span class="lang-en">Agent core identity is securely bound.</span>
+    </div>
+
+    <div id="identitySection">
+      <label
+        ><span class="lang-zh">展示名称</span><span class="lang-en"
+          >Display Name</span
+        ></label
+      >
+      <p class="hint">
+        <span class="lang-zh">授权账号昵称: </span><span class="lang-en"
+          >Auth Account Name:
+        </span><span id="hintMyName"
+          ><span class="lang-zh">（正在获取...）</span><span class="lang-en"
+            >(fetching...)</span
+          ></span>
+      </p>
+      <input
+        type="text"
+        id="agentName"
+        data-ph-zh="自动从您的身份提供者中读取"
+        data-ph-en="Auto read from identity provider"
+        placeholder="自动从您的身份提供者中读取"
+        readonly
+        disabled
+      />
+
+      <label
+        ><span class="lang-zh">X @handle（不含 @）</span><span class="lang-en"
+          >X @handle (without @)</span
+        ></label
+      >
+      <p class="hint">
+        <span class="lang-zh">授权账号短柄: </span><span class="lang-en"
+          >Auth Account Handle:
+        </span><span id="hintMyHandle"
+          ><span class="lang-zh">（正在获取...）</span><span class="lang-en"
+            >(fetching...)</span
+          ></span>
+      </p>
+      <input
+        type="text"
+        id="agentHandle"
+        data-ph-zh="自动从您的身份提供者中读取"
+        data-ph-en="Auto read from identity provider"
+        placeholder="自动从您的身份提供者中读取"
+        readonly
+        disabled
+      />
+    </div>
+
+    <label
+      ><span class="lang-zh">源账号（逗号分隔，不含 @）</span><span
+        class="lang-en">Source Accounts (comma separated, no @)</span
+      ></label
+    >
+    <input
+      type="text"
+      id="sourceAccounts"
+      data-ph-zh="例: elonmusk"
+      data-ph-en="Example: elonmusk"
+      placeholder="例: elonmusk"
+    />
+    <p class="hint">
+      <span class="lang-zh">将抓取这些账号的推文用于人格蒸馏。</span><span
+        class="lang-en"
+        >Will fetch tweets from these accounts for persona distillation.</span>
+    </p>
+
     <div id="err3" class="alert alert-error"></div>
     <div class="flex justify-between mt-8">
-      <button class="btn btn-ghost btn-back" data-step="1"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button>
-      <button class="btn btn-primary btn-next" data-step="4"><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span></button>
+      <button class="btn btn-ghost btn-back" data-step="1"
+        ><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span
+        ></button
+      >
+      <button class="btn btn-primary btn-next" data-step="4"
+        ><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span
+        ></button
+      >
     </div>
   </div>
 
   <!-- Step 4: Distill -->
   <div class="step-panel" id="s4">
-    <h2><span class="lang-zh">🧪 人格蒸馏</span><span class="lang-en">🧪 Persona Distillation</span></h2>
-    <div class="subtitle"><span class="lang-zh">拉取推文，利用 LLM 配置生成 system prompt。</span><span class="lang-en">Fetch tweets and generate system prompt.</span></div>
-    <div class="info-card" style="margin-bottom: 16px;"><span class="lang-zh">点击开始蒸馏后，后台将拉取最多一百条最近推文，并提取出此人的行文风格。</span><span class="lang-en">Will fetch up to 100 recent tweets and extract writing style.</span></div>
-    
-    <label><span class="lang-zh">配置生成语言</span><span class="lang-en">Output Language</span></label>
-    <div class="flex gap-4" style="margin-top:8px;">
-      <label style="margin-top:0; cursor:pointer;" class="flex items-center gap-2"><input type="radio" name="pLang" value="zh" checked> 🇨🇳 中文</label>
-      <label style="margin-top:0; cursor:pointer;" class="flex items-center gap-2"><input type="radio" name="pLang" value="en"> 🇺🇸 English</label>
+    <h2>
+      <span class="lang-zh">🧪 人格蒸馏</span><span class="lang-en"
+        >🧪 Persona Distillation</span>
+    </h2>
+    <div class="subtitle">
+      <span class="lang-zh">拉取推文，利用 LLM 配置生成 system prompt。</span
+      ><span class="lang-en">Fetch tweets and generate system prompt.</span>
     </div>
-    <p class="hint"><span class="lang-zh">💡 强烈建议生成 <b>中文</b> 提示词。同等人格配置下，高度凝练的中文能为您日常运行 Agent 省下极可观的 System Prompt Token 费率！</span><span class="lang-en">💡 Highly recommend choosing <b>Chinese</b>. Highly condensed Chinese persona strings will save you tremendous Tokens!</span></p>
+    <div class="info-card" style="margin-bottom: 16px;">
+      <span class="lang-zh"
+        >点击开始蒸馏后，后台将拉取最多一百条最近推文，并提取出此人的行文风格。</span
+      ><span class="lang-en"
+        >Will fetch up to 100 recent tweets and extract writing style.</span>
+    </div>
 
-    <button class="btn btn-primary w-full mt-4" id="startDistillBtn"><span class="lang-zh">🚀 开始一键蒸馏</span><span class="lang-en">🚀 Start Distillation</span></button>
-    
-    <div id="distillLoading" style="display:none" class="mt-4">
-      <div class="dot-pulse"></div><span><span class="lang-zh">正在疯狂蒸馏中（约需 10-30 秒）……</span><span class="lang-en">Distilling (takes 10-30s)...</span></span>
+    <label
+      ><span class="lang-zh">配置生成语言</span><span class="lang-en"
+        >Output Language</span
+      ></label
+    >
+    <div class="flex gap-4" style="margin-top:8px;">
+      <label
+        style="margin-top:0; cursor:pointer;"
+        class="flex items-center gap-2"
+        ><input type="radio" name="pLang" value="zh" checked /> 🇨🇳 中文</label
+      >
+      <label
+        style="margin-top:0; cursor:pointer;"
+        class="flex items-center gap-2"
+        ><input type="radio" name="pLang" value="en" /> 🇺🇸 English</label
+      >
     </div>
-    
+    <p class="hint">
+      <span class="lang-zh"
+        >💡 强烈建议生成 <b>中文</b> 提示词。同等人格配置下，高度凝练的中文能为您日常运行
+        Agent 省下极可观的 System Prompt Token 费率！</span
+      ><span class="lang-en"
+        >💡 Highly recommend choosing <b>Chinese</b>. Highly condensed Chinese
+        persona strings will save you tremendous Tokens!</span>
+    </p>
+
+    <button class="btn btn-primary w-full mt-4" id="startDistillBtn"
+      ><span class="lang-zh">🚀 开始一键蒸馏</span><span class="lang-en"
+        >🚀 Start Distillation</span
+      ></button
+    >
+
+    <div id="distillLoading" style="display:none" class="mt-4">
+      <div class="dot-pulse"></div><span
+        ><span class="lang-zh">正在疯狂蒸馏中（约需 10-30 秒）……</span><span
+          class="lang-en">Distilling (takes 10-30s)...</span
+        ></span
+      >
+    </div>
+
     <div id="distillRes" class="alert alert-success mt-4"></div>
-    
-    <label><span class="lang-zh">人格配置输出 (System Prompt)</span><span class="lang-en">System Prompt Output</span></label>
-    <textarea id="skillText" rows="12" data-ph-zh="蒸馏出的 persona_skill 会显示在这里，您可自由微调补充。可以跳过蒸馏，自己手写！" data-ph-en="Distilled persona_skill will show here, you can handwrite or edit it!" placeholder="蒸馏出的 persona_skill 会显示在这里，您可自由微调补充。可以跳过蒸馏，自己手写！"></textarea>
-    
+
+    <label
+      ><span class="lang-zh">人格配置输出 (System Prompt)</span><span
+        class="lang-en">System Prompt Output</span
+      ></label
+    >
+    <textarea
+      id="skillText"
+      rows="12"
+      style="resize:vertical"
+      data-ph-zh="蒸馏出的 persona_skill 会显示在这里，您可自由微调补充。可以跳过蒸馏，自己手写！"
+      data-ph-en="Distilled persona_skill will show here, you can handwrite or edit it!"
+      placeholder="蒸馏出的 persona_skill 会显示在这里，您可自由微调补充。可以跳过蒸馏，自己手写！"
+    ></textarea>
+
     <div id="err4" class="alert alert-error"></div>
     <div class="flex justify-between mt-8">
-      <button class="btn btn-ghost btn-back" data-step="3"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button>
-      <button class="btn btn-primary btn-next" data-step="5"><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span></button>
+      <button class="btn btn-ghost btn-back" data-step="3"
+        ><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span
+        ></button
+      >
+      <button class="btn btn-primary btn-next" data-step="5"
+        ><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span
+        ></button
+      >
     </div>
   </div>
 
   <!-- Step 5: Tune (省略展示其余UI结构直接转到提交) -->
   <div class="step-panel" id="s5">
-    <h2><span class="lang-zh">🎯 样本调教</span><span class="lang-en">🎯 Sample Tuning</span></h2>
-    <div class="subtitle"><span class="lang-zh">生成演练样本以调优 Agent 的发言。</span><span class="lang-en">Generate practice samples to tune Agent's voice.</span></div>
-    <button class="btn btn-ghost w-full" id="genSampleBtn"><span class="lang-zh">🎲 生成测试样本</span><span class="lang-en">🎲 Generate Test Samples</span></button>
+    <h2>
+      <span class="lang-zh">🎯 样本调教</span><span class="lang-en"
+        >🎯 Sample Tuning</span>
+    </h2>
+    <div class="subtitle">
+      <span class="lang-zh">生成演练样本以调优 Agent 的发言。</span><span
+        class="lang-en">Generate practice samples to tune Agent's voice.</span>
+    </div>
+    <button class="btn btn-ghost w-full" id="genSampleBtn"
+      ><span class="lang-zh">🎲 生成测试样本</span><span class="lang-en"
+        >🎲 Generate Test Samples</span
+      ></button
+    >
     <div id="sampleLoading" style="display:none" class="mt-4">
-      <div class="dot-pulse"></div><span><span class="lang-zh">正在思考……</span><span class="lang-en">Thinking...</span></span>
+      <div class="dot-pulse"></div><span
+        ><span class="lang-zh">正在思考……</span><span class="lang-en"
+          >Thinking...</span
+        ></span
+      >
     </div>
     <div id="sampleRes" class="sample-box"></div>
-    <label><span class="lang-zh">如果不满意，可修改上一页的系统提示词后重新生成。</span><span class="lang-en">If unsatisfied, modify the system prompt and regenerate.</span></label>
-    
+    <label
+      ><span class="lang-zh"
+        >如果不满意，可修改上一页的系统提示词后重新生成。</span
+      ><span class="lang-en"
+        >If unsatisfied, modify the system prompt and regenerate.</span
+      ></label
+    >
+
     <div class="flex justify-between mt-8">
-      <button class="btn btn-ghost btn-back" data-step="4"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button>
-      <button class="btn btn-primary btn-next" id="s5next" data-step="6"><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span></button>
+      <button class="btn btn-ghost btn-back" data-step="4"
+        ><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span
+        ></button
+      >
+      <button class="btn btn-primary btn-next" id="s5next" data-step="6"
+        ><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span
+        ></button
+      >
     </div>
   </div>
 
   <!-- Step 6: Economy -->
   <div class="step-panel" id="s6">
-    <h2><span class="lang-zh">⚖️ 经济与参数</span><span class="lang-en">⚖️ Parameters & Economy</span></h2>
-    <div class="subtitle"><span class="lang-zh">调整互动概率与冷却时间。</span><span class="lang-en">Adjust interaction probability and cooldown.</span></div>
-    
+    <h2>
+      <span class="lang-zh">⚖️ 经济与参数</span><span class="lang-en"
+        >⚖️ Parameters & Economy</span>
+    </h2>
+    <div class="subtitle">
+      <span class="lang-zh">调整互动概率与冷却时间。</span><span class="lang-en"
+        >Adjust interaction probability and cooldown.</span>
+    </div>
+
     <label>回复概率 / Reply Probability (0~1)</label>
-    <input type="number" id="replyPct" step="0.1" value="0.2">
-    
+    <input type="number" id="replyPct" step="0.1" value="0.2" />
+
     <label>点赞概率 / Like Probability (0~1)</label>
-    <input type="number" id="likePct" step="0.1" value="0.8">
-    
+    <input type="number" id="likePct" step="0.1" value="0.8" />
+
     <label>回复冷却时间 / Reply Cooldown (Hours)</label>
-    <input type="number" id="cooldown" value="3">
-    
+    <input type="number" id="cooldown" value="3" />
+
     <label class="flex items-center gap-2 mt-4">
-      <input type="checkbox" id="enableEvo" checked>
-      <span><span class="lang-zh">开启夜间自动演进</span><span class="lang-en">Enable Nightly Evolution</span></span>
+      <input type="checkbox" id="enableEvo" checked />
+      <span
+        ><span class="lang-zh">开启夜间自动演进</span><span class="lang-en"
+          >Enable Nightly Evolution</span
+        ></span
+      >
     </label>
-    <p class="hint"><span class="lang-zh">每晚 3:00 自动总结当天互动经验优化人格。</span><span class="lang-en">Automatically summarize daily interactions to optimize persona.</span></p>
-    
+    <p class="hint">
+      <span class="lang-zh">每晚 3:00 自动总结当天互动经验优化人格。</span><span
+        class="lang-en"
+        >Automatically summarize daily interactions to optimize persona.</span>
+    </p>
+
     <div class="flex justify-between mt-8">
-      <button class="btn btn-ghost btn-back" data-step="5"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button>
-      <button class="btn btn-primary btn-next" data-step="7"><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span></button>
+      <button class="btn btn-ghost btn-back" data-step="5"
+        ><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span
+        ></button
+      >
+      <button class="btn btn-primary btn-next" data-step="7"
+        ><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span
+        ></button
+      >
     </div>
   </div>
 
   <!-- Step 7: Memory -->
   <div class="step-panel" id="s7">
-    <h2><span class="lang-zh">🧠 记忆控制</span><span class="lang-en">🧠 Memory Control</span></h2>
-    <div class="subtitle"><span class="lang-zh">控制 Agent 会记忆并回应哪些人的互动。</span><span class="lang-en">Control whose interactions the Agent remembers.</span></div>
-    
-    <label><span class="lang-zh">白名单模式</span><span class="lang-en">Whitelist Mode</span></label>
-    <select id="memMode">
-      <option value="specific" data-text-zh="特定用户（仅白名单用户）" data-text-en="Specific Users (Whitelist only)">特定用户（仅白名单用户）</option>
-      <option value="all" data-text-zh="所有人（任何人互动均可触发记忆）" data-text-en="Everyone (Any interaction triggers memory)">所有人（任何人互动均可触发记忆）</option>
-    </select>
-    
-    <div id="memUsersContainer" class="mt-4">
-      <label><span class="lang-zh">白名单用户</span><span class="lang-en">VIP List</span></label>
-      <input type="text" id="memUsers" placeholder="例：elonmusk, x">
+    <h2>
+      <span class="lang-zh">🧠 记忆控制</span><span class="lang-en"
+        >🧠 Memory Control</span>
+    </h2>
+    <div class="subtitle">
+      <span class="lang-zh">控制 Agent 会记忆并回应哪些人的互动。</span><span
+        class="lang-en">Control whose interactions the Agent remembers.</span>
     </div>
-    
+
+    <label
+      ><span class="lang-zh">白名单模式</span><span class="lang-en"
+        >Whitelist Mode</span
+      ></label
+    >
+    <select id="memMode">
+      <option
+        value="specific"
+        data-text-zh="特定用户（仅白名单用户）"
+        data-text-en="Specific Users (Whitelist only)"
+        >特定用户（仅白名单用户）</option
+      >
+      <option
+        value="all"
+        data-text-zh="所有人（任何人互动均可触发记忆）"
+        data-text-en="Everyone (Any interaction triggers memory)"
+        >所有人（任何人互动均可触发记忆）</option
+      >
+    </select>
+
+    <div id="memUsersContainer" class="mt-4">
+      <label
+        ><span class="lang-zh">白名单用户</span><span class="lang-en"
+          >VIP List</span
+        ></label
+      >
+      <input type="text" id="memUsers" placeholder="例：elonmusk, x" />
+    </div>
+
     <div class="flex justify-between mt-8">
-      <button class="btn btn-ghost btn-back" data-step="6"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button>
-      <button class="btn btn-primary btn-next" data-step="8"><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span></button>
+      <button class="btn btn-ghost btn-back" data-step="6"
+        ><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span
+        ></button
+      >
+      <button class="btn btn-primary btn-next" data-step="8"
+        ><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span
+        ></button
+      >
     </div>
   </div>
 
   <!-- Step 8: Deploy -->
   <div class="step-panel" id="s8">
-    <h2><span class="lang-zh">🚀 部署配置</span><span class="lang-en">🚀 Deploy Config</span></h2>
-    <div class="subtitle"><span class="lang-zh">最后确认并保存您的 Agent 以激活生命流。</span><span class="lang-en">Final confirmation to save your Agent and activate its life stream.</span></div>
-    
+    <h2>
+      <span class="lang-zh">🚀 部署配置</span><span class="lang-en"
+        >🚀 Deploy Config</span>
+    </h2>
+    <div class="subtitle">
+      <span class="lang-zh">最后确认并保存您的 Agent 以激活生命流。</span><span
+        class="lang-en"
+        >Final confirmation to save your Agent and activate its life stream.</span>
+    </div>
+
     <div class="summary-box">
       <div id="summaryContent"></div>
     </div>
-    <button class="btn btn-primary w-full mt-8" id="finishBtn" style="font-size: 1.2rem; padding: 16px;"><span class="lang-zh">✨ 点燃灵魂火种</span><span class="lang-en">✨ Ignite Soul (Deploy Agent)</span></button>
+    <button
+      class="btn btn-primary w-full mt-8"
+      id="finishBtn"
+      style="font-size: 1.2rem; padding: 16px;"
+      ><span class="lang-zh">✨ 点燃灵魂火种</span><span class="lang-en"
+        >✨ Ignite Soul (Deploy Agent)</span
+      ></button
+    >
     <div id="deployRes" class="alert mt-4"></div>
-    
+
     <div class="flex justify-between mt-8">
-      <button class="btn btn-ghost btn-back" data-step="7"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button>
+      <button class="btn btn-ghost btn-back" data-step="7"
+        ><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span
+        ></button
+      >
       <span></span>
     </div>
   </div>
 
-<script>
-// @ts-nocheck
-// Logic identical to wizard.html but wrapped in modern JS scoped.
-const api = async (endpoint, payload) => {
-  const method = payload ? 'POST' : 'GET';
-  const r = await fetch(endpoint, {
-    method,
-    headers: payload ? { 'Content-Type': 'application/json' } : undefined,
-    body: payload ? JSON.stringify(payload) : undefined
-  });
-  return r.json();
-};
+  <script>
+    // @ts-nocheck
+    // Logic identical to wizard.html but wrapped in modern JS scoped.
+    const api = async (endpoint, payload) => {
+      const method = payload ? "POST" : "GET";
+      const r = await fetch(endpoint, {
+        method,
+        headers: payload ? { "Content-Type": "application/json" } : undefined,
+        body: payload ? JSON.stringify(payload) : undefined,
+      });
+      return r.json();
+    };
 
-const $ = id => document.getElementById(id);
+    const $ = (id) => document.getElementById(id);
 
-const S = {
-  step: 0,
-  mode: 'create',
-  geminiKey:'', geminiModel:'gemini-2.5-pro',
-  accessToken:'', refreshToken:'',
-  agentName:'', agentHandle:'', sourceAccounts:[],
-  skill:'',
-  vipList: [],
-  memMode:'specific', memUsers:[],
-  replyPct:0.2, likePct:0.8, cooldown:3,
-  enableEvo:true,
-};
+    const S = {
+      step: 0,
+      mode: "create",
+      geminiKey: "",
+      geminiModel: "gemini-2.5-pro",
+      accessToken: "",
+      refreshToken: "",
+      agentName: "",
+      agentHandle: "",
+      sourceAccounts: [],
+      skill: "",
+      vipList: [],
+      memMode: "specific",
+      memUsers: [],
+      replyPct: 0.2,
+      likePct: 0.8,
+      cooldown: 3,
+      enableEvo: true,
+    };
 
-const STEPS_CREATE = ['<span class="lang-zh">授权</span><span class="lang-en">Auth</span>','<span class="lang-zh">身份</span><span class="lang-en">Identity</span>','<span class="lang-zh">蒸馏</span><span class="lang-en">Distill</span>','<span class="lang-zh">调教</span><span class="lang-en">Tune</span>','<span class="lang-zh">经济</span><span class="lang-en">Economy</span>','<span class="lang-zh">记忆</span><span class="lang-en">Memory</span>','<span class="lang-zh">部署</span><span class="lang-en">Deploy</span>'];
-const STEPS_DISTILL = ['<span class="lang-zh">授权</span><span class="lang-en">Auth</span>','<span class="lang-zh">目标</span><span class="lang-en">Target</span>','<span class="lang-zh">蒸馏</span><span class="lang-en">Distill</span>','<span class="lang-zh">调教</span><span class="lang-en">Tune</span>'];
+    const STEPS_CREATE = [
+      '<span class="lang-zh">授权</span><span class="lang-en">Auth</span>',
+      '<span class="lang-zh">身份</span><span class="lang-en">Identity</span>',
+      '<span class="lang-zh">蒸馏</span><span class="lang-en">Distill</span>',
+      '<span class="lang-zh">调教</span><span class="lang-en">Tune</span>',
+      '<span class="lang-zh">经济</span><span class="lang-en">Economy</span>',
+      '<span class="lang-zh">记忆</span><span class="lang-en">Memory</span>',
+      '<span class="lang-zh">部署</span><span class="lang-en">Deploy</span>',
+    ];
+    const STEPS_DISTILL = [
+      '<span class="lang-zh">授权</span><span class="lang-en">Auth</span>',
+      '<span class="lang-zh">目标</span><span class="lang-en">Target</span>',
+      '<span class="lang-zh">蒸馏</span><span class="lang-en">Distill</span>',
+      '<span class="lang-zh">调教</span><span class="lang-en">Tune</span>',
+    ];
 
-function buildNav() {
-  if (S.step === 0) { $('stepNav').innerHTML = ''; return; }
-  const STEPS = S.mode === 'distill' ? STEPS_DISTILL : STEPS_CREATE;
-  const nav = $('stepNav');
-  nav.innerHTML = '';
-  STEPS.forEach((lbl, i) => {
-    const n = i + 1;
-    const div = document.createElement('div');
-    div.className = 'step-dot' + (n < S.step ? ' done' : n === S.step ? ' active' : '');
-    div.innerHTML = `<div class="num">${n < S.step ? '✓' : n}</div><div class="lbl">${lbl}</div>`;
-    nav.appendChild(div);
-  });
-}
-
-function showErr(id, msg) {
-  const el = $(id); if (!el) return;
-  el.innerHTML = msg; el.className = 'alert alert-error show';
-}
-function clearErr(id) { const el = $(id); if(el) el.className = 'alert alert-error'; }
-
-async function go(n) {
-  clearErr('err' + S.step);
-  if (n > S.step && !validate(S.step)) return;
-  if (S.mode === 'distill' && n > 5) return; // Prevent forward nav in distill mode
-  
-  if (n === 3) {
-    if (S.mode === 'distill') {
-      $('identitySection').style.display = 'none';
-      $('s3Title').innerHTML = '<h2><span class="lang-zh">🎯 目标源账号</span><span class="lang-en">🎯 Target Source Accounts</span></h2>';
-      $('s3Subtitle').innerHTML = '<span class="lang-zh">在此输入需要拉取推文进行蒸馏分析的源账号。</span><span class="lang-en">Enter the source accounts to pull and distill.</span>';
-    } else {
-      $('identitySection').style.display = 'block';
-      $('s3Title').innerHTML = '<h2><span class="lang-zh">🎭 Agent 身份</span><span class="lang-en">🎭 Agent Identity</span></h2>';
-      $('s3Subtitle').innerHTML = '<span class="lang-zh">核心身份信息已与您的授权 X 账号强绑定。</span><span class="lang-en">Agent core identity is securely bound.</span>';
+    function buildNav() {
+      if (S.step === 0) {
+        $("stepNav").innerHTML = "";
+        return;
+      }
+      const STEPS = S.mode === "distill" ? STEPS_DISTILL : STEPS_CREATE;
+      const nav = $("stepNav");
+      nav.innerHTML = "";
+      STEPS.forEach((lbl, i) => {
+        const n = i + 1;
+        const div = document.createElement("div");
+        div.className =
+          "step-dot" + (n < S.step ? " done" : n === S.step ? " active" : "");
+        div.innerHTML = `<div class="num">${n < S.step ? "✓" : n}</div><div class="lbl">${lbl}</div>`;
+        nav.appendChild(div);
+      });
     }
-  }
-  
-  if (n === 5) {
-    if (S.mode === 'distill') $('s5next').style.display = 'none';
-    else $('s5next').style.display = 'inline-flex';
-  }
 
-  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
-  $('s' + n).classList.add('active');
-  S.step = n;
-  buildNav();
+    function showErr(id, msg) {
+      const el = $(id);
+      if (!el) return;
+      el.innerHTML = msg;
+      el.className = "alert alert-error show";
+    }
+    function clearErr(id) {
+      const el = $(id);
+      if (el) el.className = "alert alert-error";
+    }
 
-  if (n === 8) renderSummary();
-}
+    async function go(n) {
+      clearErr("err" + S.step);
+      if (n > S.step && !validate(S.step)) return;
+      if (S.mode === "distill" && n > 5) return; // Prevent forward nav in distill mode
 
-function validate(step) {
-  if (S.mode === 'distill' && step >= 5) return true; // safety
-  if (step === 1 && !S.refreshToken) { showErr('err1', '<span class="lang-zh">请先完成授权或填入 Refresh Token</span><span class="lang-en">Please complete Auth or input Refresh Token</span>'); return false; }
-  if (step === 3) {
-    if (!$('sourceAccounts').value.trim()) { showErr('err3','<span class="lang-zh">请输入至少一个源账号</span><span class="lang-en">Please enter at least one source account</span>'); return false; }
-  }
-  if (step === 4 && !$('skillText').value.trim()) { showErr('err4','<span class="lang-zh">请等待蒸馏完成或手动填入人格配置</span><span class="lang-en">Wait for distillation or enter persona</span>'); return false; }
-  
-  // collect
-  if (step === 3) {
-    S.agentName = $('agentName').value.trim();
-    S.agentHandle = $('agentHandle').value.trim();
-    S.sourceAccounts = $('sourceAccounts').value.split(',').map(s=>s.trim()).filter(Boolean);
-  }
-  if (step === 4 || step === 5) {
-    S.skill = $('skillText').value.trim();
-  }
-  if (step === 6) {
-    S.replyPct = parseFloat($('replyPct').value);
-    S.likePct = parseFloat($('likePct').value);
-    S.cooldown = parseFloat($('cooldown').value);
-    S.enableEvo = $('enableEvo').checked;
-  }
-  if (step === 7) {
-    S.memMode = $('memMode').value;
-    S.memUsers = $('memUsers').value.split(',').map(s=>s.trim().replace('@','')).filter(Boolean);
-  }
-  return true;
-}
+      if (n === 3) {
+        if (S.mode === "distill") {
+          $("identitySection").style.display = "none";
+          $("s3Title").innerHTML =
+            '<h2><span class="lang-zh">🎯 目标源账号</span><span class="lang-en">🎯 Target Source Accounts</span></h2>';
+          $("s3Subtitle").innerHTML =
+            '<span class="lang-zh">在此输入需要拉取推文进行蒸馏分析的源账号。</span><span class="lang-en">Enter the source accounts to pull and distill.</span>';
+        } else {
+          $("identitySection").style.display = "block";
+          $("s3Title").innerHTML =
+            '<h2><span class="lang-zh">🎭 Agent 身份</span><span class="lang-en">🎭 Agent Identity</span></h2>';
+          $("s3Subtitle").innerHTML =
+            '<span class="lang-zh">核心身份信息已与您的授权 X 账号强绑定。</span><span class="lang-en">Agent core identity is securely bound.</span>';
+        }
+      }
 
-$('modeCreateBtn').addEventListener('click', () => { S.mode = 'create'; go(1); });
-$('modeDistillBtn').addEventListener('click', () => { S.mode = 'distill'; go(1); });
+      if (n === 5) {
+        if (S.mode === "distill") $("s5next").style.display = "none";
+        else $("s5next").style.display = "inline-flex";
+      }
 
-// Attach generic navigation listeners
-document.querySelectorAll('.btn-next, .btn-back').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    const step = parseInt(e.currentTarget.dataset.step);
-    if (!isNaN(step)) go(step);
-  });
-});
+      document
+        .querySelectorAll(".step-panel")
+        .forEach((p) => p.classList.remove("active"));
+      $("s" + n).classList.add("active");
+      S.step = n;
+      buildNav();
 
-$('s1next').addEventListener('click', () => go(3));
+      if (n === 8) renderSummary();
+    }
 
-// Init
-$('cbHint').textContent = window.location.origin + '/callback';
-buildNav();
+    function validate(step) {
+      if (S.mode === "distill" && step >= 5) return true; // safety
+      if (step === 1 && !S.refreshToken) {
+        showErr(
+          "err1",
+          '<span class="lang-zh">请先完成授权或填入 Refresh Token</span><span class="lang-en">Please complete Auth or input Refresh Token</span>',
+        );
+        return false;
+      }
+      if (step === 3) {
+        if (!$("sourceAccounts").value.trim()) {
+          showErr(
+            "err3",
+            '<span class="lang-zh">请输入至少一个源账号</span><span class="lang-en">Please enter at least one source account</span>',
+          );
+          return false;
+        }
+      }
+      if (step === 4 && !$("skillText").value.trim()) {
+        showErr(
+          "err4",
+          '<span class="lang-zh">请等待蒸馏完成或手动填入人格配置</span><span class="lang-en">Wait for distillation or enter persona</span>',
+        );
+        return false;
+      }
 
-document.addEventListener('lang-changed', function() {
-  const isEn = document.body.classList.contains('en-mode');
-  document.querySelectorAll('input[data-ph-zh], textarea[data-ph-zh]').forEach(el => {
-    el.placeholder = isEn ? el.getAttribute('data-ph-en') : el.getAttribute('data-ph-zh');
-  });
-  document.querySelectorAll('option[data-text-zh], span[data-text-zh]').forEach(el => {
-    el.textContent = isEn ? el.getAttribute('data-text-en') : el.getAttribute('data-text-zh');
-  });
-});
-document.dispatchEvent(new Event('lang-changed'));
+      // collect
+      if (step === 3) {
+        S.agentName = $("agentName").value.trim();
+        S.agentHandle = $("agentHandle").value.trim();
+        S.sourceAccounts = $("sourceAccounts")
+          .value.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      if (step === 4 || step === 5) {
+        S.skill = $("skillText").value.trim();
+      }
+      if (step === 6) {
+        S.replyPct = parseFloat($("replyPct").value);
+        S.likePct = parseFloat($("likePct").value);
+        S.cooldown = parseFloat($("cooldown").value);
+        S.enableEvo = $("enableEvo").checked;
+      }
+      if (step === 7) {
+        S.memMode = $("memMode").value;
+        S.memUsers = $("memUsers")
+          .value.split(",")
+          .map((s) => s.trim().replace("@", ""))
+          .filter(Boolean);
+      }
+      return true;
+    }
 
-// --- API Calls ---
-let oauthPollTimer = null;
-$('oauthBtn').addEventListener('click', async () => {
-  $('oauthBtn').disabled = true;
-  clearErr('err1');
-  const r = await api('/api/oauth/start', {});
-  if (r.error) { showErr('err1', r.error); $('oauthBtn').disabled = false; return; }
-  
-  const authWin = window.open(r.authUrl, '_blank');
-  $('oauthStatus').style.display = 'flex';
-  
-  let checkClosedTimer = setInterval(() => {
-    if (authWin && authWin.closed) {
-      clearInterval(checkClosedTimer);
-      clearInterval(oauthPollTimer);
-      if ($('oauthDone').style.display !== 'block') { 
-        showErr('err1', '⚠️ 授权窗口已被关闭。如果不小心关掉的，可以点击上面重试。');
-        $('oauthBtn').disabled = false;
-        $('oauthStatus').style.display = 'none';
+    $("modeCreateBtn").addEventListener("click", () => {
+      S.mode = "create";
+      go(1);
+    });
+    $("modeDistillBtn").addEventListener("click", () => {
+      S.mode = "distill";
+      go(1);
+    });
+
+    $("gotoDashboardBtn").addEventListener("click", () => {
+      const id = $("dashboardAgentId").value.trim();
+      if (!id) {
+        $("dashboardErr").style.display = "block";
+        return;
+      }
+      $("dashboardErr").style.display = "none";
+      window.location.href = "/dashboard?id=" + encodeURIComponent(id);
+    });
+
+    // Attach generic navigation listeners
+    document.querySelectorAll(".btn-next, .btn-back").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const step = parseInt(e.currentTarget.dataset.step);
+        if (!isNaN(step)) go(step);
+      });
+    });
+
+    $("s1next").addEventListener("click", () => go(3));
+
+    // Init
+    $("cbHint").textContent = window.location.origin + "/callback";
+    buildNav();
+
+    document.addEventListener("lang-changed", function () {
+      const isEn = document.body.classList.contains("en-mode");
+      document
+        .querySelectorAll("input[data-ph-zh], textarea[data-ph-zh]")
+        .forEach((el) => {
+          el.placeholder = isEn
+            ? el.getAttribute("data-ph-en")
+            : el.getAttribute("data-ph-zh");
+        });
+      document
+        .querySelectorAll("option[data-text-zh], span[data-text-zh]")
+        .forEach((el) => {
+          el.textContent = isEn
+            ? el.getAttribute("data-text-en")
+            : el.getAttribute("data-text-zh");
+        });
+    });
+    document.dispatchEvent(new Event("lang-changed"));
+
+    // --- API Calls ---
+    let oauthPollTimer = null;
+    $("oauthBtn").addEventListener("click", async () => {
+      $("oauthBtn").disabled = true;
+      clearErr("err1");
+      const r = await api("/api/oauth/start", {});
+      if (r.error) {
+        showErr("err1", r.error);
+        $("oauthBtn").disabled = false;
+        return;
+      }
+
+      const authWin = window.open(r.authUrl, "_blank");
+      $("oauthStatus").style.display = "flex";
+
+      let checkClosedTimer = setInterval(() => {
+        if (authWin && authWin.closed) {
+          clearInterval(checkClosedTimer);
+          clearInterval(oauthPollTimer);
+          if ($("oauthDone").style.display !== "block") {
+            showErr(
+              "err1",
+              "⚠️ 授权窗口已被关闭。如果不小心关掉的，可以点击上面重试。",
+            );
+            $("oauthBtn").disabled = false;
+            $("oauthStatus").style.display = "none";
+          }
+        }
+      }, 1000);
+
+      oauthPollTimer = setInterval(async () => {
+        const res = await api(
+          "/api/oauth/result?sessionId=" + encodeURIComponent(r.sessionId),
+        );
+        if (res.status === "done") {
+          clearInterval(oauthPollTimer);
+          clearInterval(checkClosedTimer);
+          S.accessToken = res.accessToken;
+          S.refreshToken = res.refreshToken;
+          $("oauthStatus").style.display = "none";
+          $("oauthDone").style.display = "block";
+          fetchIdentityHint();
+          $("s1next").disabled = false;
+        } else if (res.status === "error") {
+          clearInterval(oauthPollTimer);
+          clearInterval(checkClosedTimer);
+          showErr("err1", res.error ?? "OAuth failed");
+          $("oauthBtn").disabled = false;
+          $("oauthStatus").style.display = "none";
+        }
+      }, 1500);
+    });
+
+    $("useManualBtn").addEventListener("click", async () => {
+      const rt = $("manualRefresh").value.trim();
+      if (!rt) {
+        showErr("err1", "请填入 Refresh Token");
+        return;
+      }
+      const r = await api("/api/oauth/refresh", { refreshToken: rt });
+      if (r.error) {
+        showErr("err1", "Token 验证失败：" + r.error);
+        return;
+      }
+      S.refreshToken = rt;
+      S.accessToken = r.accessToken;
+      $("manualDone").style.display = "block";
+      fetchIdentityHint();
+      $("s1next").disabled = false;
+    });
+
+    async function fetchIdentityHint() {
+      const meRes = await api("/api/me", { accessToken: S.accessToken });
+      if (!meRes.error && meRes.name && meRes.username) {
+        if (!$("agentName").value) $("agentName").value = meRes.name;
+        if (!$("agentHandle").value) $("agentHandle").value = meRes.username;
+        $("hintMyName").textContent = meRes.name;
+        $("hintMyHandle").textContent = meRes.username;
       }
     }
-  }, 1000);
 
-  oauthPollTimer = setInterval(async () => {
-    const res = await api('/api/oauth/result?sessionId=' + encodeURIComponent(r.sessionId));
-    if (res.status === 'done') {
-      clearInterval(oauthPollTimer);
-      clearInterval(checkClosedTimer);
-      S.accessToken = res.accessToken; S.refreshToken = res.refreshToken;
-      $('oauthStatus').style.display = 'none';
-      $('oauthDone').style.display = 'block';
-      fetchIdentityHint();
-      $('s1next').disabled = false;
-    } else if (res.status === 'error') {
-      clearInterval(oauthPollTimer);
-      clearInterval(checkClosedTimer);
-      showErr('err1', res.error ?? 'OAuth failed');
-      $('oauthBtn').disabled = false; $('oauthStatus').style.display = 'none';
-    }
-  }, 1500);
-});
+    // skip models UI fetcher logic as element was deleted
 
-$('useManualBtn').addEventListener('click', async () => {
-  const rt = $('manualRefresh').value.trim();
-  if (!rt) { showErr('err1','请填入 Refresh Token'); return; }
-  const r = await api('/api/oauth/refresh', { refreshToken: rt });
-  if (r.error) { showErr('err1','Token 验证失败：' + r.error); return; }
-  S.refreshToken = rt; S.accessToken = r.accessToken;
-  $('manualDone').style.display = 'block';
-  fetchIdentityHint();
-  $('s1next').disabled = false;
-});
+    // Distill
+    $("startDistillBtn").addEventListener("click", async () => {
+      $("distillLoading").style.display = "flex";
+      $("startDistillBtn").disabled = true;
+      clearErr("err4");
+      const payload = {
+        sourceAccounts: $("sourceAccounts")
+          .value.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        accessToken: S.accessToken,
+        promptLang: document.querySelector('input[name="pLang"]:checked').value,
+      };
+      const r = await api("/api/distill", payload);
+      $("distillLoading").style.display = "none";
+      $("startDistillBtn").disabled = false;
+      if (r.error) {
+        showErr("err4", r.error);
+        return;
+      }
 
-async function fetchIdentityHint() {
-  const meRes = await api('/api/me', { accessToken: S.accessToken });
-  if (!meRes.error && meRes.name && meRes.username) {
-    if (!$('agentName').value) $('agentName').value = meRes.name;
-    if (!$('agentHandle').value) $('agentHandle').value = meRes.username;
-    $('hintMyName').textContent = meRes.name;
-    $('hintMyHandle').textContent = meRes.username;
-  }
-}
+      let dHtml = "";
+      if (r.fetched) {
+        for (const [k, v] of Object.entries(r.fetched)) {
+          dHtml += `@${k}: <span class="lang-zh">抓取了</span><span class="lang-en">fetched</span> ${v} <span class="lang-zh">条推文</span><span class="lang-en">tweets</span><br>`;
+        }
+      }
+      const el = $("distillRes");
+      el.innerHTML =
+        dHtml +
+        '<br><b><span class="lang-zh">✅ 蒸馏成功！</span><span class="lang-en">✅ Distillation Successful!</span></b>';
+      el.className = "alert alert-success show";
+      $("skillText").value = r.skill;
+    });
 
-// skip models UI fetcher logic as element was deleted
+    // Tune
+    $("genSampleBtn").addEventListener("click", async () => {
+      $("sampleLoading").style.display = "flex";
+      $("genSampleBtn").disabled = true;
+      const payload = { skill: $("skillText").value };
+      const r = await api("/api/tune/sample", payload);
+      $("sampleLoading").style.display = "none";
+      $("genSampleBtn").disabled = false;
 
-// Distill
-$('startDistillBtn').addEventListener('click', async () => {
-  $('distillLoading').style.display = 'flex';
-  $('startDistillBtn').disabled = true;
-  clearErr('err4');
-  const payload = {
-    sourceAccounts: $('sourceAccounts').value.split(',').map(s=>s.trim()).filter(Boolean),
-    accessToken: S.accessToken,
-    promptLang: document.querySelector('input[name="pLang"]:checked').value
-  };
-  const r = await api('/api/distill', payload);
-  $('distillLoading').style.display = 'none';
-  $('startDistillBtn').disabled = false;
-  if(r.error) { showErr('err4', r.error); return; }
-  
-  let dHtml = '';
-  if (r.fetched) {
-    for (const [k,v] of Object.entries(r.fetched)) { dHtml += `@${k}: <span class="lang-zh">抓取了</span><span class="lang-en">fetched</span> ${v} <span class="lang-zh">条推文</span><span class="lang-en">tweets</span><br>`; }
-  }
-  const el = $('distillRes');
-  el.innerHTML = dHtml + '<br><b><span class="lang-zh">✅ 蒸馏成功！</span><span class="lang-en">✅ Distillation Successful!</span></b>';
-  el.className = 'alert alert-success show';
-  $('skillText').value = r.skill;
-});
+      if (r.error) {
+        $("sampleRes").innerHTML =
+          `<div style="color:var(--error)">❌ ${r.error}</div>`;
+        return;
+      }
+      let h = "";
+      if (r.tweet) {
+        h += `<div style="margin-top:16px;background:var(--input-bg);padding:12px;border-radius:12px;">`;
+        h += `<div style="font-size:12px;color:var(--primary)"><span class="lang-zh">✏️ 自发推文</span><span class="lang-en">✏️ Spontaneous Tweet</span></div><div style="margin-top:8px">${r.tweet}</div>`;
+        h += `</div>`;
+      }
+      if (r.reply) {
+        h += `<div style="margin-top:16px;background:var(--input-bg);padding:12px;border-radius:12px;">`;
+        h += `<div style="font-size:12px;color:var(--primary)"><span class="lang-zh">💬 互动回复</span><span class="lang-en">💬 Interactive Reply</span></div><div style="font-size:13px;color:var(--text-muted)">Context: [@stranger] 说了: 这你们华人都是一个怎么想的？</div><div style="margin-top:8px">${r.reply}</div>`;
+        h += `</div>`;
+      }
+      $("sampleRes").innerHTML = h;
+    });
 
-// Tune
-$('genSampleBtn').addEventListener('click', async () => {
-  $('sampleLoading').style.display = 'flex'; $('genSampleBtn').disabled = true;
-  const payload = { skill: $('skillText').value };
-  const r = await api('/api/tune/sample', payload);
-  $('sampleLoading').style.display = 'none'; $('genSampleBtn').disabled = false;
-  
-  if (r.error) { $('sampleRes').innerHTML = `<div style="color:var(--error)">❌ ${r.error}</div>`; return; }
-  let h = '';
-  if (r.tweet) {
-    h += `<div style="margin-top:16px;background:var(--input-bg);padding:12px;border-radius:12px;">`;
-    h += `<div style="font-size:12px;color:var(--primary)"><span class="lang-zh">✏️ 自发推文</span><span class="lang-en">✏️ Spontaneous Tweet</span></div><div style="margin-top:8px">${r.tweet}</div>`;
-    h += `</div>`;
-  }
-  if (r.reply) {
-    h += `<div style="margin-top:16px;background:var(--input-bg);padding:12px;border-radius:12px;">`;
-    h += `<div style="font-size:12px;color:var(--primary)"><span class="lang-zh">💬 互动回复</span><span class="lang-en">💬 Interactive Reply</span></div><div style="font-size:13px;color:var(--text-muted)">Context: [@stranger] 说了: 这你们华人都是一个怎么想的？</div><div style="margin-top:8px">${r.reply}</div>`;
-    h += `</div>`;
-  }
-  $('sampleRes').innerHTML = h;
-});
+    // Memory UI Bind
+    $("memMode").addEventListener("change", () => {
+      $("memUsersContainer").style.display =
+        $("memMode").value === "all" ? "none" : "block";
+    });
 
-// Memory UI Bind
-$('memMode').addEventListener('change', () => {
-  $('memUsersContainer').style.display = $('memMode').value === 'all' ? 'none' : 'block';
-});
-
-// Deploy
-function renderSummary() {
-  const html = `
+    // Deploy
+    function renderSummary() {
+      const html = `
     <li><strong><span class="lang-zh">授权账号</span><span class="lang-en">Auth Account</span>:</strong> @${S.agentHandle}</li>
     <p style="margin-top:24px;font-size:14px;color:var(--text-muted)">
       <span class="lang-zh">Gemini 模型配置将通过平台环境变量读取。</span><span class="lang-en">Gemini Model Config is now mapped to ENV context.</span>
     </p>
-    <li><strong><span class="lang-zh">记忆模式</span><span class="lang-en">Memory Mode</span>:</strong> ${S.memMode === 'all' ? '<span class="lang-zh">监听全网</span><span class="lang-en">Listen to All</span>' : '<span class="lang-zh">特定白名单</span><span class="lang-en">Whitelist</span> (' + S.memUsers.length + '人)'}</li>
-    <li><strong><span class="lang-zh">互动概率</span><span class="lang-en">Interaction Pct</span>:</strong> <span class="lang-zh">点赞</span><span class="lang-en">Like</span> ${S.likePct*100}% | <span class="lang-zh">回复</span><span class="lang-en">Reply</span> ${S.replyPct*100}%</li>
+    <li><strong><span class="lang-zh">记忆模式</span><span class="lang-en">Memory Mode</span>:</strong> ${S.memMode === "all" ? '<span class="lang-zh">监听全网</span><span class="lang-en">Listen to All</span>' : '<span class="lang-zh">特定白名单</span><span class="lang-en">Whitelist</span> (' + S.memUsers.length + "人)"}</li>
+    <li><strong><span class="lang-zh">互动概率</span><span class="lang-en">Interaction Pct</span>:</strong> <span class="lang-zh">点赞</span><span class="lang-en">Like</span> ${S.likePct * 100}% | <span class="lang-zh">回复</span><span class="lang-en">Reply</span> ${S.replyPct * 100}%</li>
   `;
-  $('summaryContent').innerHTML = `<ul style="color:var(--text-muted);font-size:1rem;line-height:2;">${html}</ul>`;
-}
+      $("summaryContent").innerHTML =
+        `<ul style="color:var(--text-muted);font-size:1rem;line-height:2;">${html}</ul>`;
+    }
 
-$('finishBtn').addEventListener('click', async () => {
-  $('finishBtn').disabled = true;
-  $('finishBtn').textContent = '部署配置中...';
-  
-  const payload = { ...S };
-  const r = await api('/api/agent/create', payload);
-  if (r.error) {
-    const el = $('deployRes'); el.textContent = '部署失败: ' + r.error; el.className = 'alert alert-error show';
-    $('finishBtn').disabled = false; $('finishBtn').textContent = '重试部署';
-    return;
-  }
-  
-  $('deployRes').innerHTML = `
+    $("finishBtn").addEventListener("click", async () => {
+      $("finishBtn").disabled = true;
+      $("finishBtn").textContent = "部署配置中...";
+
+      const payload = {
+        config: {
+          agentName: S.agentName,
+          agentHandle: S.agentHandle,
+          sourceAccounts: S.sourceAccounts,
+          geminiModel: S.geminiModel,
+          defaultReplyProbability: S.replyPct,
+          defaultLikeProbability: S.likePct,
+          spontaneousCooldownDays: S.cooldown,
+          enableNightlyEvolution: S.enableEvo,
+          vipList: S.vipList,
+          memoryWhitelist: S.memMode === "all" ? "all" : S.memUsers,
+        },
+        skill: S.skill,
+        refreshToken: S.refreshToken,
+      };
+      const r = await api("/api/agent/create", payload);
+      if (r.error) {
+        const el = $("deployRes");
+        el.textContent = "部署失败: " + r.error;
+        el.className = "alert alert-error show";
+        $("finishBtn").disabled = false;
+        $("finishBtn").textContent = "重试部署";
+        return;
+      }
+
+      $("deployRes").innerHTML = `
     🎉 <b><span class="lang-zh">Agent 部署成功！</span><span class="lang-en">Agent Deployed Successfully!</span></b><br><br>
     您的 Agent 已储存于 SaaS 数据中心并开始自动巡逻。<br>Your Agent is active. Click below to enter your Dashboard:<br>
     <a href="/dashboard?id=${r.agentId}" style="display:inline-block;margin-top:16px" class="btn btn-primary"><span class="lang-zh">进入控制台</span><span class="lang-en">Enter Dashboard</span></a>
   `;
-  $('deployRes').className = 'alert alert-success show';
-  $('finishBtn').style.display = 'none';
-});
-</script>
-
-
+      $("deployRes").className = "alert alert-success show";
+      $("finishBtn").style.display = "none";
+    });
+  </script>
 </Layout>
