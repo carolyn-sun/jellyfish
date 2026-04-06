@@ -7,6 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 type = "Text"
 globs = ["**/*.html"]
 fallbacks = []
+fallthrough = true
 
 # ── Cron Triggers ──────────────────────────────────────────────────────────────
 # These cron expressions MUST match cronSchedules in generated/config.json.
