@@ -376,7 +376,8 @@ export default {
             isUpdate = true;
             await env.DB.prepare(`
               UPDATE agents SET
-                agent_name = ?, agent_handle = ?, agent_secret = ?,
+                agent_name = ?, agent_handle = ?,
+                agent_secret = COALESCE(NULLIF(?, ''), agent_secret),
                 source_accounts = ?, gemini_model = ?, gemini_api_key = ?,
                 refresh_token = ?, access_token = null, token_expires_at = 0,
                 skill_text = ?, reply_pct = ?, like_pct = ?,
@@ -386,7 +387,7 @@ export default {
             `).bind(
               config.agentName ?? '',
               config.agentHandle ?? '',
-              dashboardSecret || undefined,   // keep old secret if not provided
+              dashboardSecret,              // NULLIF turns '' → NULL → COALESCE keeps existing
               JSON.stringify(config.sourceAccounts ?? []),
               config.geminiModel ?? 'gemini-2.5-pro',
               geminiApiKey,
