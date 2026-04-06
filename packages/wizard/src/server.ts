@@ -155,8 +155,9 @@ app.get('/', (_req: Request, res: Response) => {
 
 // ── OAuth: start PKCE ─────────────────────────────────────────────────────────
 app.post('/api/oauth/start', (req: Request, res: Response) => {
-  const { clientId, clientSecret } = req.body as { clientId: string; clientSecret: string };
-  if (!clientId || !clientSecret) { res.status(400).json({ error: 'Missing credentials' }); return; }
+  const clientId = process.env.X_CLIENT_ID;
+  const clientSecret = process.env.X_CLIENT_SECRET;
+  if (!clientId || !clientSecret) { res.status(500).json({ error: 'Server missing X_CLIENT_ID or X_CLIENT_SECRET' }); return; }
 
   const sessionId    = randomBytes(16).toString('hex');
   const codeVerifier = randomBytes(32).toString('base64url');
@@ -241,9 +242,11 @@ h2{color:#8b5cf6}p{color:#94a3b8}</style></head>
 
 // ── OAuth: refresh token → access token (for skip case) ──────────────────────
 app.post('/api/oauth/refresh', async (req: Request, res: Response) => {
-  const { clientId, clientSecret, refreshToken } = req.body as Record<string, string>;
+  const { refreshToken } = req.body as Record<string, string>;
+  const clientId = process.env.X_CLIENT_ID ?? '';
+  const clientSecret = process.env.X_CLIENT_SECRET ?? '';
   try {
-    const accessToken = await refreshAccessToken(clientId ?? '', clientSecret ?? '', refreshToken ?? '');
+    const accessToken = await refreshAccessToken(clientId, clientSecret, refreshToken ?? '');
     res.json({ accessToken });
   } catch (err) { res.status(400).json({ error: String(err) }); }
 });
@@ -280,8 +283,10 @@ app.post('/api/tune/refine', async (req: Request, res: Response) => {
 
 // ── Save files ────────────────────────────────────────────────────────────────
 app.post('/api/save', (req: Request, res: Response) => {
-  const { config, skill, xClientId, xClientSecret, refreshToken, geminiApiKey } =
-    req.body as { config: object; skill: string; xClientId: string; xClientSecret: string; refreshToken: string; geminiApiKey: string };
+  const { config, skill, refreshToken, geminiApiKey } =
+    req.body as { config: object; skill: string; refreshToken: string; geminiApiKey: string };
+  const xClientId = process.env.X_CLIENT_ID ?? '';
+  const xClientSecret = process.env.X_CLIENT_SECRET ?? '';
   try {
     mkdirSync(GENERATED_DIR, { recursive: true });
     const adminSecret = randomBytes(24).toString('hex');

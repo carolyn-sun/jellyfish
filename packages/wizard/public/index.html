@@ -55,7 +55,7 @@ textarea{resize:vertical;min-height:180px;font-family:'JetBrains Mono',monospace
 .spacer{flex:1}
 
 /* Alert / error */
-.alert{padding:12px 16px;border-radius:var(--radius);font-size:13px;margin-top:16px;display:none}
+.alert{padding:12px 16px;border-radius:var(--radius);font-size:13px;margin-top:16px;display:none;word-break:break-word;overflow-wrap:break-word}
 .alert.show{display:block}
 .alert-error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#fca5a5}
 .alert-success{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:#86efac}
@@ -128,10 +128,12 @@ h3.section{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppe
     <input type="password" id="geminiKey" placeholder="AIza..."></div>
   <div class="field"><label>模型名称</label>
     <div style="display:flex;gap:8px">
-      <select id="geminiModel" style="flex:1">
-        <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+      <select id="geminiModelSelect" style="flex:1" onchange="handleModelChange()">
+        <option value="" disabled selected>👉 请点右侧拉取列表 或 选择下方填入</option>
+        <option value="_custom_">✍️ 手动输入...</option>
       </select>
-      <button class="btn btn-ghost" id="fetchModelsBtn" onclick="fetchModels()">更新列表</button>
+      <input type="text" id="geminiModelCustom" style="display:none;flex:1" value="" placeholder="填入具体的模型名...">
+      <button class="btn btn-ghost" id="fetchModelsBtn" onclick="fetchModels()">下拉列表空？点此拉取</button>
     </div>
     <div class="hint">填入 API Key 后点击按钮即可拉取该 Key 支持的所有可用模型</div></div>
   <div id="err1" class="alert alert-error"></div>
@@ -141,24 +143,8 @@ h3.section{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppe
   </div>
 </div>
 
-<!-- ── Step 2: X Credentials ── -->
+<!-- ── Step 2: Authorization ── -->
 <div class="step-panel" id="s2">
-  <h2>🐦 X App 凭据</h2>
-  <div class="subtitle">前往 <a href="https://developer.twitter.com" target="_blank" style="color:#a78bfa">developer.twitter.com</a> → 你的 App → Keys and Tokens。</div>
-  <div class="field"><label>Client ID</label>
-    <input type="text" id="xClientId" placeholder="..."></div>
-  <div class="field"><label>Client Secret</label>
-    <input type="password" id="xClientSecret" placeholder="..."></div>
-  <div id="err2" class="alert alert-error"></div>
-  <div class="row" style="margin-top:24px">
-    <button class="btn btn-ghost" onclick="go(1)">← 返回</button>
-    <span class="spacer"></span>
-    <button class="btn btn-primary" onclick="go(3)">下一步 →</button>
-  </div>
-</div>
-
-<!-- ── Step 3: Authorization ── -->
-<div class="step-panel" id="s3">
   <h2>🔐 X 账号授权</h2>
   <div class="subtitle">授权 Agent 的 X 账号，获取 Refresh Token。</div>
 
@@ -180,16 +166,16 @@ h3.section{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppe
     <div id="manualDone" style="display:none;margin-top:8px" class="alert alert-success show">✅ 已使用手动输入的 Token。</div>
   </div>
 
-  <div id="err3" class="alert alert-error"></div>
+  <div id="err2" class="alert alert-error"></div>
   <div class="row" style="margin-top:24px">
-    <button class="btn btn-ghost" onclick="go(2)">← 返回</button>
+    <button class="btn btn-ghost" onclick="go(1)">← 返回</button>
     <span class="spacer"></span>
-    <button class="btn btn-primary" id="s3next" disabled onclick="go(4)">下一步 →</button>
+    <button class="btn btn-primary" id="s2next" disabled onclick="go(3)">下一步 →</button>
   </div>
 </div>
 
-<!-- ── Step 4: Agent Identity ── -->
-<div class="step-panel" id="s4">
+<!-- ── Step 3: Agent Identity ── -->
+<div class="step-panel" id="s3">
   <h2>🎭 Agent 身份</h2>
   <div class="subtitle">设置 Agent 的展示名称、X handle 和要蒸馏的源账号。</div>
   <div class="field"><label>展示名称</label>
@@ -199,16 +185,16 @@ h3.section{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppe
   <div class="field"><label>源账号（逗号分隔，不含 @）</label>
     <input type="text" id="sourceAccounts" placeholder="例：amber_medusozoa, amber_toffee">
     <div class="hint">将抓取这些账号的推文用于人格蒸馏。</div></div>
-  <div id="err4" class="alert alert-error"></div>
+  <div id="err3" class="alert alert-error"></div>
   <div class="row" style="margin-top:24px">
-    <button class="btn btn-ghost" onclick="go(3)">← 返回</button>
+    <button class="btn btn-ghost" onclick="go(2)">← 返回</button>
     <span class="spacer"></span>
-    <button class="btn btn-primary" onclick="go(5)">开始蒸馏 →</button>
+    <button class="btn btn-primary" onclick="go(4)">开始蒸馏 →</button>
   </div>
 </div>
 
-<!-- ── Step 5: Distill ── -->
-<div class="step-panel" id="s5">
+<!-- ── Step 4: Distill ── -->
+<div class="step-panel" id="s4">
   <h2>🧬 人格蒸馏</h2>
   <div class="subtitle">从源账号抓取推文并由 Gemini 合成人格配置。</div>
   <div id="distillLoading" style="text-align:center;padding:48px;display:none">
@@ -220,16 +206,16 @@ h3.section{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppe
     <div class="field"><label>人格配置（可直接编辑）</label>
       <textarea id="skillText" style="min-height:320px"></textarea></div>
   </div>
-  <div id="err5" class="alert alert-error"></div>
+  <div id="err4" class="alert alert-error"></div>
   <div class="row" style="margin-top:24px">
-    <button class="btn btn-ghost" onclick="go(4)">← 返回</button>
+    <button class="btn btn-ghost" onclick="go(3)">← 返回</button>
     <span class="spacer"></span>
-    <button class="btn btn-primary" id="s5next" disabled onclick="go(6)">下一步 →</button>
+    <button class="btn btn-primary" id="s4next" disabled onclick="go(5)">下一步 →</button>
   </div>
 </div>
 
-<!-- ── Step 6: Tune ── -->
-<div class="step-panel" id="s6">
+<!-- ── Step 5: Tune ── -->
+<div class="step-panel" id="s5">
   <h2>🎨 RLHF 调教 <span style="font-size:13px;color:var(--dim);font-weight:400">（可跳过）</span></h2>
   <div class="subtitle">通过生成示例并给出反馈来反复优化人格，最多 10 轮。</div>
 
@@ -253,17 +239,17 @@ h3.section{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppe
       </div>
     </div>
   </div>
-  <div id="err6" class="alert alert-error"></div>
+  <div id="err5" class="alert alert-error"></div>
   <div class="row" style="margin-top:24px">
-    <button class="btn btn-ghost" onclick="go(5)">← 返回</button>
+    <button class="btn btn-ghost" onclick="go(4)">← 返回</button>
     <span class="spacer"></span>
-    <button class="btn btn-ghost" onclick="go(7)">跳过 →</button>
-    <button class="btn btn-primary" onclick="go(7)">完成调教 →</button>
+    <button class="btn btn-ghost" onclick="go(6)">跳过 →</button>
+    <button class="btn btn-primary" onclick="go(6)">完成调教 →</button>
   </div>
 </div>
 
-<!-- ── Step 7: Economy ── -->
-<div class="step-panel" id="s7">
+<!-- ── Step 6: Economy ── -->
+<div class="step-panel" id="s6">
   <h2>⚖️ 互动经济学</h2>
   <div class="subtitle">设置回复/点赞概率，以及 VIP 特殊关系列表。</div>
 
@@ -296,14 +282,14 @@ h3.section{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppe
   </div>
 
   <div class="row" style="margin-top:24px">
-    <button class="btn btn-ghost" onclick="go(6)">← 返回</button>
+    <button class="btn btn-ghost" onclick="go(5)">← 返回</button>
     <span class="spacer"></span>
-    <button class="btn btn-primary" onclick="go(8)">下一步 →</button>
+    <button class="btn btn-primary" onclick="go(7)">下一步 →</button>
   </div>
 </div>
 
-<!-- ── Step 8: Memory ── -->
-<div class="step-panel" id="s8">
+<!-- ── Step 7: Memory ── -->
+<div class="step-panel" id="s7">
   <h2>🧠 记忆与演化</h2>
   <div class="subtitle">配置哪些用户的互动会进入长期记忆，以及是否开启夜间人格演化。</div>
 
@@ -327,18 +313,18 @@ h3.section{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppe
   </div>
 
   <div class="row" style="margin-top:28px">
-    <button class="btn btn-ghost" onclick="go(7)">← 返回</button>
+    <button class="btn btn-ghost" onclick="go(6)">← 返回</button>
     <span class="spacer"></span>
     <button class="btn btn-primary" onclick="saveAndDeploy()">生成配置文件 🚀</button>
   </div>
 </div>
 
-<!-- ── Step 9: Deploy ── -->
-<div class="step-panel" id="s9">
+<!-- ── Step 8: Deploy ── -->
+<div class="step-panel" id="s8">
   <h2>✅ 配置生成完成</h2>
-  <div class="subtitle">文件已写入，按以下步骤部署到 Cloudflare Workers。</div>
+  <div class="subtitle">文件已写入，按以下步骤部署。</div>
   <div id="deployInfo"></div>
-  <div id="err9" class="alert alert-error"></div>
+  <div id="err8" class="alert alert-error"></div>
 </div>
 
 </div><!-- /.card -->
@@ -366,7 +352,7 @@ const S = {
 };
 
 // ── Step labels ────────────────────────────────────────────────────────────────
-const STEPS = ['Gemini','X App','授权','身份','蒸馏','调教','经济','记忆','部署'];
+const STEPS = ['Gemini','授权','身份','蒸馏','调教','经济','记忆','部署'];
 function buildNav() {
   const nav = $('stepNav');
   nav.innerHTML = '';
@@ -402,13 +388,32 @@ async function fetchModels() {
     btn.disabled = false; btn.textContent = '更新列表';
     if (r.error) { showErr('err1', r.error); return; }
     if (r.models && r.models.length > 0) {
-      $('geminiModel').innerHTML = r.models.map(m => `<option value="${m}">${m}</option>`).join('');
+      let html = r.models.map(m => `<option value="${m}">${m}</option>`).join('');
+      html += `<option disabled>───────────────</option><option value="_custom_">✍️ 手动输入其它...</option>`;
+      $('geminiModelSelect').innerHTML = html;
+      $('geminiModelSelect').style.display = 'block';
+      $('geminiModelCustom').style.display = 'none';
+      if (!$('geminiModelCustom').value || $('geminiModelCustom').value === 'gemini-2.5-pro') {
+          $('geminiModelSelect').value = r.models[0];
+      }
+      showErr('err1', `✅ 成功拉取 ${r.models.length} 个模型 (已展开到列表)`);
+      $('err1').className = 'alert alert-success show';
     } else {
       showErr('err1', '未找到可用的模型');
     }
   } catch (err) {
     btn.disabled = false; btn.textContent = '更新列表';
     showErr('err1', String(err));
+  }
+}
+
+// ── UI logic ────────────────────────────────────────────────────────────────────
+function handleModelChange() {
+  if ($('geminiModelSelect').value === '_custom_') {
+    $('geminiModelSelect').style.display = 'none';
+    const c = $('geminiModelCustom');
+    c.style.display = 'block';
+    c.focus();
   }
 }
 
@@ -420,36 +425,35 @@ async function go(n) {
   $('s' + n).classList.add('active');
   S.step = n;
   buildNav();
-  if (n === 5) startDistill();
-  if (n === 6) genSample();
+  if (n === 4) startDistill();
+  if (n === 5) genSample();
 }
 
 function validate(step) {
   if (step === 1) {
+    let mode = $('geminiModelSelect').style.display !== 'none' ? $('geminiModelSelect').value : $('geminiModelCustom').value;
+    if (mode === '_custom_' && !$('geminiModelCustom').value.trim()) { showErr('err1','请输入模型名称'); return false; }
+    if (mode !== '_custom_') $('geminiModelCustom').value = mode; // keep hidden input in sync for collection
+
     if (!$('geminiKey').value.trim()) { showErr('err1','请输入 Gemini API Key'); return false; }
-    if (!$('geminiModel').value.trim()) { showErr('err1','请输入模型名称'); return false; }
+    if (!$('geminiModelCustom').value.trim()) { showErr('err1','请输入模型名称'); return false; }
   }
-  if (step === 2) {
-    if (!$('xClientId').value.trim()) { showErr('err2','请输入 Client ID'); return false; }
-    if (!$('xClientSecret').value.trim()) { showErr('err2','请输入 Client Secret'); return false; }
+  if (step === 2 && !S.refreshToken) { showErr('err2','请先完成授权或填入 Refresh Token'); return false; }
+  if (step === 3) {
+    if (!$('agentName').value.trim()) { showErr('err3','请输入展示名称'); return false; }
+    if (!$('agentHandle').value.trim()) { showErr('err3','请输入 @handle'); return false; }
+    if (!$('sourceAccounts').value.trim()) { showErr('err3','请输入至少一个源账号'); return false; }
   }
-  if (step === 3 && !S.refreshToken) { showErr('err3','请先完成授权或填入 Refresh Token'); return false; }
-  if (step === 4) {
-    if (!$('agentName').value.trim()) { showErr('err4','请输入展示名称'); return false; }
-    if (!$('agentHandle').value.trim()) { showErr('err4','请输入 @handle'); return false; }
-    if (!$('sourceAccounts').value.trim()) { showErr('err4','请输入至少一个源账号'); return false; }
-  }
-  if (step === 5 && !$('skillText').value.trim()) { showErr('err5','请等待蒸馏完成或手动填入人格配置'); return false; }
+  if (step === 4 && !$('skillText').value.trim()) { showErr('err4','请等待蒸馏完成或手动填入人格配置'); return false; }
   // collect
-  if (step === 1) { S.geminiKey = $('geminiKey').value.trim(); S.geminiModel = $('geminiModel').value.trim(); }
-  if (step === 2) { S.xClientId = $('xClientId').value.trim(); S.xClientSecret = $('xClientSecret').value.trim(); }
-  if (step === 4) {
+  if (step === 1) { S.geminiKey = $('geminiKey').value.trim(); S.geminiModel = $('geminiModelCustom').value.trim(); }
+  if (step === 3) {
     S.agentName = $('agentName').value.trim();
     S.agentHandle = $('agentHandle').value.trim();
     S.sourceAccounts = $('sourceAccounts').value.split(',').map(s=>s.trim()).filter(Boolean);
   }
+  if (step === 4) S.skill = $('skillText').value.trim();
   if (step === 5) S.skill = $('skillText').value.trim();
-  if (step === 6) S.skill = $('skillText').value.trim();
   return true;
 }
 
@@ -457,21 +461,39 @@ function validate(step) {
 let oauthPollTimer = null;
 async function startOAuth() {
   $('oauthBtn').disabled = true;
-  const r = await api('/api/oauth/start', { clientId: $('xClientId').value.trim(), clientSecret: $('xClientSecret').value.trim() });
-  if (r.error) { showErr('err3', r.error); $('oauthBtn').disabled = false; return; }
-  window.open(r.authUrl, '_blank');
+  clearErr('err2');
+  const r = await api('/api/oauth/start', {});
+  if (r.error) { showErr('err2', r.error); $('oauthBtn').disabled = false; return; }
+  
+  const authWin = window.open(r.authUrl, '_blank');
   $('oauthStatus').style.display = 'flex';
+  
+  // Track if the user closed the window prematurely
+  const checkClosedTimer = setInterval(() => {
+    if (authWin && authWin.closed) {
+      clearInterval(checkClosedTimer);
+      clearInterval(oauthPollTimer);
+      if ($('oauthDone').style.display !== 'block') { // Not completed yet
+        showErr('err2', '⚠️ 授权窗口已被关闭。如果不小心关掉的，可以点击上面重试。');
+        $('oauthBtn').disabled = false;
+        $('oauthStatus').style.display = 'none';
+      }
+    }
+  }, 500);
+
   oauthPollTimer = setInterval(async () => {
     const res = await api('/api/oauth/result?sessionId=' + r.sessionId);
     if (res.status === 'done') {
       clearInterval(oauthPollTimer);
+      clearInterval(checkClosedTimer);
       S.accessToken = res.accessToken; S.refreshToken = res.refreshToken;
       $('oauthStatus').style.display = 'none';
       $('oauthDone').style.display = 'block';
-      $('s3next').disabled = false;
+      $('s2next').disabled = false;
     } else if (res.status === 'error') {
       clearInterval(oauthPollTimer);
-      showErr('err3', res.error ?? 'OAuth failed');
+      clearInterval(checkClosedTimer);
+      showErr('err2', res.error ?? 'OAuth failed');
       $('oauthBtn').disabled = false; $('oauthStatus').style.display = 'none';
     }
   }, 1500);
@@ -479,12 +501,12 @@ async function startOAuth() {
 
 async function useManualToken() {
   const rt = $('manualRefresh').value.trim();
-  if (!rt) { showErr('err3','请填入 Refresh Token'); return; }
-  const r = await api('/api/oauth/refresh', { clientId: $('xClientId').value.trim(), clientSecret: $('xClientSecret').value.trim(), refreshToken: rt });
-  if (r.error) { showErr('err3','Token 验证失败：' + r.error); return; }
+  if (!rt) { showErr('err2','请填入 Refresh Token'); return; }
+  const r = await api('/api/oauth/refresh', { refreshToken: rt });
+  if (r.error) { showErr('err2','Token 验证失败：' + r.error); return; }
   S.refreshToken = rt; S.accessToken = r.accessToken;
   $('manualDone').style.display = 'block';
-  $('s3next').disabled = false;
+  $('s2next').disabled = false;
 }
 
 // ── Distill ────────────────────────────────────────────────────────────────────
@@ -607,15 +629,13 @@ async function saveAndDeploy() {
 
   const r = await api('/api/save', {
     config, skill,
-    xClientId:    S.xClientId,
-    xClientSecret:S.xClientSecret,
     refreshToken: S.refreshToken,
     geminiApiKey: S.geminiKey,
   });
 
-  if (r.error) { showErr('err9', r.error); go(9); return; } // still go to step 9
+  if (r.error) { showErr('err8', r.error); go(8); return; } // still go to step 8
 
-  go(9);
+  go(8);
   $('deployInfo').innerHTML = `
     <div class="alert alert-success show" style="margin-bottom:20px">
       🎉 配置文件已生成！
