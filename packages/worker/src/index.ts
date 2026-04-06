@@ -448,6 +448,13 @@ export default {
       const agent = results[0] as unknown as AgentDbRecord;
       const vipList = typeof agent.vip_list === 'string' ? JSON.parse(agent.vip_list) : agent.vip_list;
 
+      // Safely resolve mem_whitelist regardless of what DB returns (null, 'all', JSON string, array)
+      const rawWl = (agent as any).mem_whitelist;
+      const isMemWhitelistAll = rawWl === 'all';
+      const memWhitelistArr: string[] = isMemWhitelistAll ? [] :
+        Array.isArray(rawWl) ? rawWl :
+        (() => { try { const p = JSON.parse(rawWl || '[]'); return Array.isArray(p) ? p : []; } catch { return []; } })();
+
       const base = url.origin;
 
       const html = `<!DOCTYPE html>
@@ -610,7 +617,10 @@ export default {
     </div>
     <div class="card">
       <h2 style="color:#c084fc">🧬 <span class="lang-zh">人格演化</span><span class="lang-en">Persona Evolution</span></h2>
-      <p><span class="lang-zh">吸收现有记忆重塑底层人格（执行后清空记忆库）</span><span class="lang-en">Absorb memories to reshape persona (clears memory after)</span></p>
+      <p><span class="lang-zh">吸收现有记忆重塑底层人格（执行后清空记忆库）。</span><span class="lang-en">Absorb memories to reshape persona (clears memory after).</span></p>
+      <p style="font-size:.8rem;color:var(--text-muted);margin-top:4px">
+        🕒 <span class="lang-zh">自动执行：每日 <b>UTC 03:00</b>（北京时间 11:00），需开启「自动演化」</span><span class="lang-en">Auto-runs: daily at <b>UTC 03:00</b> (11:00 CST), requires "Auto Evolution" enabled</span>
+      </p>
       <a class="btn btn-primary" href="#" onclick="run(event,'/api/agent/evolve?id=${agentId}');return false"><span class="lang-zh">强制重塑</span><span class="lang-en">Evolve Now</span></a>
     </div>
     <div class="card">
@@ -646,16 +656,16 @@ export default {
       <p><span class="lang-zh">设置搜集哪些用户互动记忆的账号。选择「所有人」或填入指定 @handle（逗号分隔）。</span><span class="lang-en">Set which users' interactions are absorbed into memory. Choose everyone, or list specific handles (comma-separated).</span></p>
       <div style="display:flex;gap:16px;margin:12px 0">
         <label style="margin-top:0;display:flex;align-items:center;gap:6px;cursor:pointer">
-          <input type="radio" name="wl-mode" id="wl-all" value="all" ${(agent.mem_whitelist as any) === 'all' ? 'checked' : ''} style="width:auto;height:auto;margin-top:0">
+          <input type="radio" name="wl-mode" id="wl-all" value="all" ${isMemWhitelistAll ? 'checked' : ''} style="width:auto;height:auto;margin-top:0">
           <span class="lang-zh">🌍 所有人</span><span class="lang-en">🌍 Everyone</span>
         </label>
         <label style="margin-top:0;display:flex;align-items:center;gap:6px;cursor:pointer">
-          <input type="radio" name="wl-mode" id="wl-specific" value="specific" ${(agent.mem_whitelist as any) !== 'all' ? 'checked' : ''} style="width:auto;height:auto;margin-top:0">
+          <input type="radio" name="wl-mode" id="wl-specific" value="specific" ${!isMemWhitelistAll ? 'checked' : ''} style="width:auto;height:auto;margin-top:0">
           <span class="lang-zh">📌 指定账号</span><span class="lang-en">📌 Specific accounts</span>
         </label>
       </div>
-      <div id="wl-accounts-row" style="${(agent.mem_whitelist as any) !== 'all' ? '' : 'display:none'}">
-        <input id="wl-accounts" type="text" placeholder="handle1, handle2, handle3" value="${(agent.mem_whitelist as any) !== 'all' ? (agent.mem_whitelist as string[]).join(', ') : ''}" style="margin-top:0">
+      <div id="wl-accounts-row" style="${!isMemWhitelistAll ? '' : 'display:none'}">
+        <input id="wl-accounts" type="text" placeholder="handle1, handle2, handle3" value="${memWhitelistArr.join(', ')}" style="margin-top:0">
       </div>
       <button class="btn btn-primary" style="margin-top:12px" onclick="saveWhitelist('${agentId}')">💾 <span class="lang-zh">保存</span><span class="lang-en">Save</span></button>
       <span id="wl-status" class="status-tag"></span>
