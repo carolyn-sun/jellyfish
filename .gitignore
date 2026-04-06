@@ -14,3 +14,7 @@ dist/
 
 # Wizard Generated Outputs
 packages/worker/generated/
+
+# Astro & Frontend Outputs
+.astro/
+packages/worker/public/

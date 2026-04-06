@@ -24,17 +24,12 @@ const { title } = Astro.props;
     
     <div class="page-wrapper">
       <header class="logo-area">
-        <h1>Agent <span class="text-gradient">Matrix</span></h1>
-        <div class="tagline">Cloudflare × X App</div>
+        <h1>Another <span class="text-gradient">X Agent</span> Setup</h1>
       </header>
       
       <main class="content-wrapper">
         <slot />
       </main>
-
-      <footer>
-        &copy; 2026 Agent Matrix SaaS. Powered by Astro & Cloudflare.
-      </footer>
     </div>
   </body>
 </html>
@@ -126,13 +121,6 @@ const { title } = Astro.props;
     color: transparent;
   }
 
-  .tagline {
-    color: var(--text-muted);
-    font-size: 1.1rem;
-    margin-top: 8px;
-    font-weight: 500;
-  }
-
   .content-wrapper {
     flex: 1;
     background: var(--card-bg);
@@ -144,14 +132,6 @@ const { title } = Astro.props;
     padding: 32px;
     position: relative;
     overflow: hidden;
-  }
-
-  footer {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    margin-top: 40px;
-    padding-bottom: 20px;
   }
 
   /* Form Elements */
