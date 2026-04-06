@@ -5,8 +5,18 @@ import Layout from '../layouts/Layout.astro';
 <Layout title="Another X Agent Setup">
   <div id="stepNav" class="step-nav"></div>
 
+  <!-- Step 0: Mode Selection -->
+  <div class="step-panel active" id="s0">
+    <h2>🌟 欢迎 / Welcome</h2>
+    <div class="subtitle">请选择您要进行的操作 / Please select an operation</div>
+    <div class="flex" style="flex-direction:column; gap:16px;">
+      <button class="btn btn-primary" id="modeCreateBtn" style="padding: 24px; font-size: 1.1rem; height: auto;">🤖 创建并部署全功能 Agent<br><span style="font-size:0.8rem; opacity:0.8; font-weight:normal; margin-top:8px; display:inline-block;">完整定型、配置概率并激活后台巡逻进程<br>Deploy active agent to background daemon</span></button>
+      <button class="btn btn-ghost" id="modeDistillBtn" style="padding: 24px; font-size: 1.1rem; border: 1px solid var(--primary); height: auto;">🔍 仅体验账号推文人格蒸馏<br><span style="font-size:0.8rem; opacity:0.8; font-weight:normal; margin-top:8px; display:inline-block;">免部署精简体验，提取任何人格化 Prompt<br>Distill persona system prompt only without deploying</span></button>
+    </div>
+  </div>
+
   <!-- Step 1: Authorization -->
-  <div class="step-panel active" id="s1">
+  <div class="step-panel" id="s1">
     <h2>🔐 X 账号授权 <span style='font-size:0.7em;color:var(--text-muted)'>/ X Auth</span></h2>
     <div class="subtitle">授权 Agent 的 X 账号，获取 Refresh Token. / Authorize Agent's X account to get Refresh Token.</div>
 
@@ -30,7 +40,7 @@ import Layout from '../layouts/Layout.astro';
 
     <div id="err1" class="alert alert-error"></div>
     <div class="flex justify-between mt-8">
-      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-back" data-step="0">← 返回 / Back</button>
       <button class="btn btn-primary" id="s1next" disabled>下一步 → / Next</button>
     </div>
   </div>
@@ -129,7 +139,7 @@ import Layout from '../layouts/Layout.astro';
     
     <div class="flex justify-between mt-8">
       <button class="btn btn-ghost btn-back" data-step="4">← 返回 / Back</button>
-      <button class="btn btn-primary btn-next" data-step="6">下一步 → / Next</button>
+      <button class="btn btn-primary btn-next" id="s5next" data-step="6">下一步 → / Next</button>
     </div>
   </div>
 
@@ -214,7 +224,8 @@ const api = async (endpoint, payload) => {
 const $ = id => document.getElementById(id);
 
 const S = {
-  step: 1,
+  step: 0,
+  mode: 'create',
   geminiKey:'', geminiModel:'gemini-2.5-pro',
   accessToken:'', refreshToken:'',
   agentName:'', agentHandle:'', sourceAccounts:[],
@@ -225,9 +236,12 @@ const S = {
   enableEvo:true,
 };
 
-const STEPS = ['授权/Auth','Gemini','身份/Identity','蒸馏/Distill','调教/Tune','经济/Param','记忆/Memory','部署/Deploy'];
+const STEPS_CREATE = ['授权/Auth','Gemini','身份/Identity','蒸馏/Distill','调教/Tune','经济/Param','记忆/Memory','部署/Deploy'];
+const STEPS_DISTILL = ['授权/Auth','Gemini','目标/Target','蒸馏/Distill','调教/Tune'];
 
 function buildNav() {
+  if (S.step === 0) { $('stepNav').innerHTML = ''; return; }
+  const STEPS = S.mode === 'distill' ? STEPS_DISTILL : STEPS_CREATE;
   const nav = $('stepNav');
   nav.innerHTML = '';
   STEPS.forEach((lbl, i) => {
@@ -248,6 +262,25 @@ function clearErr(id) { const el = $(id); if(el) el.className = 'alert alert-err
 async function go(n) {
   clearErr('err' + S.step);
   if (n > S.step && !validate(S.step)) return;
+  if (S.mode === 'distill' && n > 5) return; // Prevent forward nav in distill mode
+  
+  if (n === 3) {
+    if (S.mode === 'distill') {
+      $('identitySection').style.display = 'none';
+      $('s3Title').innerHTML = '<h2>🎯 目标源账号 <span style="font-size:0.7em;color:var(--text-muted)">/ Target Auth</span></h2>';
+      $('s3Subtitle').innerText = '在此输入需要拉取推文进行蒸馏分析的源账号。 / Enter the source accounts to pull and distill.';
+    } else {
+      $('identitySection').style.display = 'block';
+      $('s3Title').innerHTML = '<h2>🎭 Agent 身份 <span style="font-size:0.7em;color:var(--text-muted)">/ Agent Identity</span></h2>';
+      $('s3Subtitle').innerText = '核心身份信息已与您的授权 X 账号强绑定。 / Agent core identity is securely bound.';
+    }
+  }
+  
+  if (n === 5) {
+    if (S.mode === 'distill') $('s5next').style.display = 'none';
+    else $('s5next').style.display = 'inline-flex';
+  }
+
   document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
   $('s' + n).classList.add('active');
   S.step = n;
@@ -256,6 +289,7 @@ async function go(n) {
 }
 
 function validate(step) {
+  if (S.mode === 'distill' && step >= 5) return true; // safety
   if (step === 1 && !S.refreshToken) { showErr('err1','请先完成授权或填入 Refresh Token'); return false; }
   if (step === 2) {
     let mode = $('geminiModelSelect').style.display !== 'none' ? $('geminiModelSelect').value : $('geminiModelCustom').value;
@@ -294,6 +328,9 @@ function validate(step) {
   }
   return true;
 }
+
+$('modeCreateBtn').addEventListener('click', () => { S.mode = 'create'; go(1); });
+$('modeDistillBtn').addEventListener('click', () => { S.mode = 'distill'; go(1); });
 
 // Attach generic navigation listeners
 document.querySelectorAll('.btn-next').forEach(btn => {

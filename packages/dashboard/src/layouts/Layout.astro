@@ -23,7 +23,10 @@ const { title } = Astro.props;
     <div class="blob blob-2"></div>
     
     <div class="page-wrapper">
-      <header class="logo-area">
+      <header class="logo-area" style="position: relative;">
+        <div style="position: absolute; right: 0; top: 0;">
+          <button id="glLangToggle" class="btn btn-ghost" style="padding: 6px 12px; font-size: 0.85rem; height: auto;">🌐 English</button>
+        </div>
         <h1>Another <span class="text-gradient">X Agent</span> Setup</h1>
       </header>
       
@@ -31,6 +34,30 @@ const { title } = Astro.props;
         <slot />
       </main>
     </div>
+    
+    <script is:inline>
+      (function() {
+        var saved = localStorage.getItem('agentSettingsLang');
+        var btn = document.getElementById('glLangToggle');
+        var setLang = function(lang) {
+          if (lang === 'en') {
+            document.body.classList.add('en-mode');
+            btn.innerText = '🌐 中文';
+            localStorage.setItem('agentSettingsLang', 'en');
+            document.dispatchEvent(new Event('lang-changed'));
+          } else {
+            document.body.classList.remove('en-mode');
+            btn.innerText = '🌐 English';
+            localStorage.setItem('agentSettingsLang', 'zh');
+            document.dispatchEvent(new Event('lang-changed'));
+          }
+        };
+        if (saved === 'en') setLang('en');
+        btn.addEventListener('click', function() {
+          setLang(document.body.classList.contains('en-mode') ? 'zh' : 'en');
+        });
+      })();
+    </script>
   </body>
 </html>
 
@@ -63,6 +90,20 @@ const { title } = Astro.props;
     position: relative;
     line-height: 1.5;
   }
+
+  /* Language Toggle Logic */
+  .lang-en { display: none !important; }
+  .lang-zh { display: inline-block; }
+  
+  body.en-mode .lang-zh { display: none !important; }
+  body.en-mode .lang-en { display: inline-block !important; }
+  
+  /* Certain block elements might need flex or block instead of inline-block */
+  .block-lang.lang-zh { display: block; }
+  body.en-mode .block-lang.lang-en { display: block !important; }
+  
+  .inline-lang.lang-zh { display: inline; }
+  body.en-mode .inline-lang.lang-en { display: inline !important; }
 
   .blob {
     position: fixed;
