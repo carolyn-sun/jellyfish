@@ -30,7 +30,7 @@ export async function fetchSourceTweets(
 
 export async function distillSkillFromTweets(
   tweetsByAccount: Record<string, string[]>,
-  geminiApiKey: string,
+  geminiApiKey: string | undefined,
   geminiModel: string,
   promptLang: string = 'zh',
   baseUrl?: string
@@ -63,7 +63,7 @@ Generate the persona.skill document now:`;
   );
 }
 
-export async function genSample(skill: string, geminiApiKey: string, geminiModel: string, baseUrl?: string) {
+export async function genSample(skill: string, geminiApiKey: string | undefined, geminiModel: string, baseUrl?: string) {
   const cfg = (temp: number) => ({ maxOutputTokens: 200, temperature: temp });
   const [a, b] = await Promise.all([
     fetchGemini(geminiModel, [{ role: 'user', parts: [{ text: '请用这个人设发一条自发推文（20字以内，不要解释）：' }] }], skill, cfg(1.1), geminiApiKey, baseUrl),
@@ -73,7 +73,7 @@ export async function genSample(skill: string, geminiApiKey: string, geminiModel
 }
 
 export async function refineSkill(
-  skill: string, feedback: string, geminiApiKey: string, geminiModel: string, baseUrl?: string
+  skill: string, feedback: string, geminiApiKey: string | undefined, geminiModel: string, baseUrl?: string
 ): Promise<string> {
   const prompt = `根据以下用户反馈更新人格配置，保持Markdown结构，只输出完整的更新后Markdown文本。\n\n当前配置：\n\`\`\`\n${skill}\n\`\`\`\n\n用户反馈：${feedback}\n\n输出：`;
   const sysInst = '你是人格配置文件编辑引擎。保持Markdown结构和所有标题，只输出修改后的纯Markdown文本。';
