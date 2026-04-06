@@ -200,6 +200,18 @@ export default {
       } catch (err) { return json({ error: String(err) }, 400); }
     }
 
+    if (pathname === '/api/me' && method === 'POST') {
+      try {
+        const reqJson = await request.json() as any;
+        const res = await fetch('https://api.twitter.com/2/users/me', {
+          headers: { Authorization: `Bearer ${reqJson.accessToken}` }
+        });
+        const data = await res.json() as any;
+        if (!res.ok) throw new Error(data.detail || 'Failed to fetch user');
+        return json(data.data);
+      } catch (err) { return json({ error: String(err) }, 400); }
+    }
+
     if (pathname === '/api/distill' && method === 'POST') {
       try {
         const reqJson = await request.json() as any;

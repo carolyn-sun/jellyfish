@@ -177,11 +177,13 @@ h3.section{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppe
 <!-- ── Step 3: Agent Identity ── -->
 <div class="step-panel" id="s3">
   <h2>🎭 Agent 身份</h2>
-  <div class="subtitle">设置 Agent 的展示名称、X handle 和要蒸馏的源账号。</div>
+  <div class="subtitle">Agent 的展示信息已根据您的授权账号自动读取，也可手动修改。</div>
   <div class="field"><label>展示名称</label>
-    <input type="text" id="agentName" placeholder="例：AI 水母"></div>
+    <div class="hint">例：AI 水母（授权账号名：<span id="hintMyName">...</span>）</div>
+    <input type="text" id="agentName" placeholder="Agent 的昵称"></div>
   <div class="field"><label>X @handle（不含 @）</label>
-    <input type="text" id="agentHandle" placeholder="例：amber_digit"></div>
+    <div class="hint">例：amber_digit（授权账号：<span id="hintMyHandle">...</span>）</div>
+    <input type="text" id="agentHandle" placeholder="不含 @ 的纯字母用户名"></div>
   <div class="field"><label>源账号（逗号分隔，不含 @）</label>
     <input type="text" id="sourceAccounts" placeholder="例：amber_medusozoa, amber_toffee">
     <div class="hint">将抓取这些账号的推文用于人格蒸馏。</div></div>
@@ -489,6 +491,7 @@ async function startOAuth() {
       S.accessToken = res.accessToken; S.refreshToken = res.refreshToken;
       $('oauthStatus').style.display = 'none';
       $('oauthDone').style.display = 'block';
+      fetchIdentityHint();
       $('s1next').disabled = false;
     } else if (res.status === 'error') {
       clearInterval(oauthPollTimer);
@@ -506,7 +509,19 @@ async function useManualToken() {
   if (r.error) { showErr('err1','Token 验证失败：' + r.error); return; }
   S.refreshToken = rt; S.accessToken = r.accessToken;
   $('manualDone').style.display = 'block';
+  fetchIdentityHint();
   $('s1next').disabled = false;
+}
+
+// Fetch Identity hint automatically using new accessToken
+async function fetchIdentityHint() {
+  const meRes = await api('/api/me', { accessToken: S.accessToken });
+  if (!meRes.error && meRes.name && meRes.username) {
+    if (!$('agentName').value) $('agentName').value = meRes.name;
+    if (!$('agentHandle').value) $('agentHandle').value = meRes.username;
+    $('hintMyName').textContent = meRes.name;
+    $('hintMyHandle').textContent = meRes.username;
+  }
 }
 
 // ── Distill ────────────────────────────────────────────────────────────────────
