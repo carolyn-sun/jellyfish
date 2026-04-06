@@ -4,7 +4,6 @@ import { getMe, getUserByUsername, getUserTweets } from './twitter.ts';
 import { getLastMentionId, getCachedOwnUserId, getInteractionsMemory, getActivityLog } from './memory.ts';
 import { GoogleGenAI } from '@google/genai';
 import { fetchSourceTweets, distillSkillFromTweets, genSample, refineSkill } from './builder.ts';
-import wizardHtml from './wizard.html';
 
 async function getAllActiveAgents(env: Env): Promise<AgentDbRecord[]> {
   const { results } = await env.DB.prepare('SELECT * FROM agents WHERE status = "active"').all();
@@ -93,11 +92,6 @@ export default {
 
     const corsHeaders = { "Access-Control-Allow-Origin": "*" };
     const json = (data: unknown, status = 200) => new Response(JSON.stringify(data, null, 2), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-
-    // ── Platform Onboarding Wizard ─────────────────────────────────────────────
-    if (pathname === '/' && method === 'GET') {
-      return new Response(wizardHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
-    }
 
     // ── Wizard API Endpoints ───────────────────────────────────────────────────
 
