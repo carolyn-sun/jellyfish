@@ -509,13 +509,13 @@ export default {
     label{display:block;font-weight:500;font-size:.85rem;color:#e4e4e7;margin-top:14px}
     .cfg-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
     /* Output */
-    /* Debug output panel — fixed at bottom */
-    #output{position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);width:min(860px,96vw);max-height:52vh;background:rgba(5,5,10,.97);border:1px solid rgba(134,239,172,.2);border-bottom:none;border-radius:14px 14px 0 0;padding:0;white-space:pre-wrap;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#86efac;line-height:1.6;z-index:9999;display:none;overflow:hidden;box-shadow:0 -8px 40px rgba(0,0,0,.6);transition:transform .3s cubic-bezier(.16,1,.3,1)}
+    /* Debug output panel — fixed floating at bottom */
+    #output{position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);width:min(860px,96vw);max-height:52vh;background:rgba(5,5,10,.97);border:1px solid rgba(134,239,172,.2);border-bottom:none;border-radius:14px 14px 0 0;padding:0;font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#86efac;line-height:1.6;z-index:9999;display:none;overflow:hidden;box-shadow:0 -8px 40px rgba(0,0,0,.6);transition:transform .3s cubic-bezier(.16,1,.3,1)}
     #output.visible{transform:translateX(-50%) translateY(0)}
     #output-header{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;border-bottom:1px solid rgba(134,239,172,.1);background:rgba(134,239,172,.05);font-size:.72rem;color:rgba(134,239,172,.6)}
     #output-close{cursor:pointer;background:none;border:none;color:rgba(134,239,172,.5);font-size:1rem;padding:0 4px;line-height:1;transition:color .15s}
     #output-close:hover{color:#86efac}
-    #output-body{padding:14px 16px;overflow-y:auto;max-height:calc(52vh - 40px)}
+    #output-body{padding:14px 16px;overflow-y:auto;max-height:calc(52vh - 40px);white-space:pre-wrap}
     /* Button spinner */
     @keyframes spin{to{transform:rotate(360deg)}}
     .btn-loading{position:relative;pointer-events:none;opacity:.75}
@@ -589,34 +589,34 @@ export default {
     <div class="card">
       <h2>📬 <span class="lang-zh">回复提及</span><span class="lang-en">Reply Mentions</span></h2>
       <p><span class="lang-zh">立即扫描新的 @mention 并生成回复</span><span class="lang-en">Scan new @mentions and generate replies immediately</span></p>
-      <a class="btn btn-primary" href="#" onclick="run(event,/api/agent/trigger?id=${agentId}');return false"><span class="lang-zh">立即触发</span><span class="lang-en">Trigger Now</span></a>
+      <a class="btn btn-primary" href="#" onclick="run(event,'/api/agent/trigger?id=${agentId}');return false"><span class="lang-zh">立即触发</span><span class="lang-en">Trigger Now</span></a>
     </div>
     <div class="card">
       <h2>👀 <span class="lang-zh">刷时间线</span><span class="lang-en">Browse Timeline</span></h2>
       <p><span class="lang-zh">扫描粉丝/VIP 列表，随机点赞或回复 2 条推文</span><span class="lang-en">Scan fans/VIP list, randomly like or reply to 2 tweets</span></p>
-      <a class="btn btn-primary" href="#" onclick="run(event,/api/agent/trigger-timeline?id=${agentId}');return false"><span class="lang-zh">浏览时间线</span><span class="lang-en">Browse Timeline</span></a>
+      <a class="btn btn-primary" href="#" onclick="run(event,'/api/agent/trigger-timeline?id=${agentId}');return false"><span class="lang-zh">浏览时间线</span><span class="lang-en">Browse Timeline</span></a>
     </div>
     <div class="card">
       <h2>💬 <span class="lang-zh">自发推文</span><span class="lang-en">Spontaneous Tweet</span></h2>
       <p><span class="lang-zh">随机生成并发布一条自发推文（冷却 ${agent.cooldown_days} 天）</span><span class="lang-en">Generate and post a spontaneous tweet (${agent.cooldown_days}d cooldown)</span></p>
-      <a class="btn btn-primary" href="#" onclick="run(event,/api/agent/spontaneous?id=${agentId}');return false"><span class="lang-zh">发推文</span><span class="lang-en">Post Tweet</span></a>
-      <a class="btn btn-ghost" href="#" onclick="run(event,/api/agent/spontaneous?id=${agentId}&force=true');return false"><span class="lang-zh">强制发</span><span class="lang-en">Force</span></a>
+      <a class="btn btn-primary" href="#" onclick="run(event,'/api/agent/spontaneous?id=${agentId}');return false"><span class="lang-zh">发推文</span><span class="lang-en">Post Tweet</span></a>
+      <a class="btn btn-ghost" href="#" onclick="run(event,'/api/agent/spontaneous?id=${agentId}&force=true');return false"><span class="lang-zh">强制发</span><span class="lang-en">Force</span></a>
     </div>
     <div class="card">
       <h2>🧠 <span class="lang-zh">互动记忆</span><span class="lang-en">Interaction Memory</span></h2>
       <p><span class="lang-zh">查看白名单用户塑造 Agent 的历史互动记录</span><span class="lang-en">View historical interaction records shaping the Agent</span></p>
       <a class="btn btn-ghost" target="_blank" href="${base}/api/agent/memory?id=${agentId}"><span class="lang-zh">查看记忆</span><span class="lang-en">View Memory</span></a>
-      <a class="btn btn-primary" href="#" onclick="run(event,/api/agent/refresh-memory?id=${agentId}');return false"><span class="lang-zh">拉取最新</span><span class="lang-en">Refresh</span></a>
+      <a class="btn btn-primary" href="#" onclick="run(event,'/api/agent/refresh-memory?id=${agentId}');return false"><span class="lang-zh">拉取最新</span><span class="lang-en">Refresh</span></a>
     </div>
     <div class="card">
       <h2 style="color:#c084fc">🧬 <span class="lang-zh">人格演化</span><span class="lang-en">Persona Evolution</span></h2>
       <p><span class="lang-zh">吸收现有记忆重塑底层人格（执行后清空记忆库）</span><span class="lang-en">Absorb memories to reshape persona (clears memory after)</span></p>
-      <a class="btn btn-primary" href="#" onclick="run(event,/api/agent/evolve?id=${agentId}');return false"><span class="lang-zh">强制重塑</span><span class="lang-en">Evolve Now</span></a>
+      <a class="btn btn-primary" href="#" onclick="run(event,'/api/agent/evolve?id=${agentId}');return false"><span class="lang-zh">强制重塑</span><span class="lang-en">Evolve Now</span></a>
     </div>
     <div class="card">
       <h2>📊 <span class="lang-zh">Agent 状态</span><span class="lang-en">Agent Status</span></h2>
       <p><span class="lang-zh">查看当前状态与配置信息</span><span class="lang-en">View current status and configuration</span></p>
-      <a class="btn btn-ghost" href="#" onclick="run(event,/api/agent/status?id=${agentId}');return false"><span class="lang-zh">查看</span><span class="lang-en">View</span></a>
+      <a class="btn btn-ghost" href="#" onclick="run(event,'/api/agent/status?id=${agentId}');return false"><span class="lang-zh">查看</span><span class="lang-en">View</span></a>
       <a class="btn btn-ghost" target="_blank" href="${base}/api/agent/activity?id=${agentId}"><span class="lang-zh">活动日志</span><span class="lang-en">Activity Log</span></a>
     </div>
   </div>
@@ -926,17 +926,35 @@ export default {
     });
   })();
 
-  // ── Actions ───────────────────────────────────────────────────────────────
-  async function run(path) {
+  // ── Actions (with button loading state) ──────────────────────────────────
+  function closeOutput() {
     var out = document.getElementById('output');
+    out.classList.remove('visible');
+    setTimeout(function() { out.style.display = 'none'; }, 320);
+  }
+
+  async function run(event, path) {
+    var btn = event && event.currentTarget;
+    var origPR = btn ? btn.style.paddingRight : '';
+    if (btn) { btn.classList.add('btn-loading'); btn.style.paddingRight = '36px'; }
+
+    var out = document.getElementById('output');
+    var body = document.getElementById('output-body');
+    var isEn = document.body.classList.contains('en-mode');
     out.style.display = 'block';
-    out.textContent = '⏳ ' + (document.body.classList.contains('en-mode') ? 'Requesting...' : '请求中...');
+    requestAnimationFrame(function() { requestAnimationFrame(function() { out.classList.add('visible'); }); });
+    body.textContent = isEn ? '⏳ Requesting...' : '⏳ 请求中……';
+
     try {
       var res = await fetch(path);
       var text = await res.text();
-      try { out.textContent = JSON.stringify(JSON.parse(text), null, 2); }
-      catch { out.textContent = text; }
-    } catch(e) { out.textContent = '❌ ' + e.message; }
+      try { body.textContent = JSON.stringify(JSON.parse(text), null, 2); }
+      catch(e) { body.textContent = text; }
+    } catch(e) {
+      body.textContent = '❌ ' + e.message;
+    } finally {
+      if (btn) { btn.classList.remove('btn-loading'); btn.style.paddingRight = origPR; }
+    }
   }
 
   async function saveConfig(id) {
