@@ -25,7 +25,7 @@ crons = [
 # Then replace the placeholder id below with the output id.
 [[kv_namespaces]]
 binding = "AGENT_STATE"
-id = "PLACEHOLDER_REPLACE_WITH_YOUR_KV_ID"
+id = "dda7af076dd44a78811dadeae480d3d7"
 
 # ── D1 Database ────────────────────────────────────────────────────────────────
 # Create with: npx wrangler d1 create agent_saas
@@ -33,7 +33,7 @@ id = "PLACEHOLDER_REPLACE_WITH_YOUR_KV_ID"
 [[d1_databases]]
 binding = "DB"
 database_name = "agent_saas"
-database_id = "PLACEHOLDER_REPLACE_WITH_YOUR_D1_ID"
+database_id = "13e065a3-b527-4613-8e8f-1ec7e1933d3f"
 
 # ── Secrets (set via `npx wrangler secret put <NAME>`) ────────────────────────
 # X_CLIENT_ID        — X App OAuth 2.0 Client ID (Platform-wide)
