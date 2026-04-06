@@ -225,13 +225,21 @@ export default {
 
       await env.AGENT_STATE.put('oauth:' + sessionId, JSON.stringify(session), { expirationTtl: 600 });
 
-      const successSub = session.agentId
-        ? '授权已更新，新的 Refresh Token 现已生效。请关闭此页。'
-        : '你的 X 账号已成功关联。请回到原部署向导页。';
-      const successSubEn = session.agentId
-        ? 'Authorization updated. New Refresh Token is now active. You can close this page.'
-        : 'Your X account is successfully linked. Please return to the wizard.';
-      return new Response(renderAuthUI('授权成功', 'Auth Successful', successSub, successSubEn), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+      // ── Dashboard re-auth (session.agentId set): just show success ──
+      if (session.agentId) {
+        return new Response(renderAuthUI('授权已更新', 'Auth Updated', '新的 Refresh Token 现已生效，请关闭此页。', 'New Refresh Token is now active. You can close this page.'), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+      }
+
+      // ── Dashboard login (no agentId): postMessage back to opener then close ──
+      const dashSuccessHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Auth</title><style>body{font-family:'Inter',system-ui,-apple-system;background:#09090b;color:#fafafa;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}.c{background:rgba(24,24,27,0.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:48px 32px;text-align:center;max-width:360px}h2{color:#86efac;margin-top:0}p{color:#a1a1aa}</style></head><body><div class="c"><h2>✅ 授权成功 / Auth Successful</h2><p>正在返回控制台… / Redirecting to dashboard…</p></div><script>
+try {
+  if (window.opener && !window.opener.closed) {
+    window.opener.postMessage({ type: 'oauth_success', accessToken: ${JSON.stringify(data.access_token)} }, '*');
+  }
+} catch(e) {}
+setTimeout(function() { window.close(); }, 1500);
+<\/script></body></html>`;
+      return new Response(dashSuccessHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     }
 
     // ── Reauth for existing agent ─────────────────────────────────────────────
@@ -652,7 +660,7 @@ export default {
 <div id="auth-gate">
   <h2>🔐 <span class="lang-zh">进入控制台</span><span class="lang-en">Enter Dashboard</span></h2>
   <div style="margin-top: 16px;">
-    <button class="btn btn-primary" onclick="window.open('/api/oauth/start', 'oauth', 'width=600,height=600')" style="width:100%;height:44px;background:#1da1f2;margin-bottom:12px">
+    <button class="btn btn-primary" onclick="startOAuth()" style="width:100%;height:44px;background:#1da1f2;margin-bottom:12px">
       <span class="lang-zh">使用 X (Twitter) 登录</span><span class="lang-en">Log in with X (Twitter)</span>
     </button>
     <div style="text-align:center;font-size:0.8rem;color:#71717a;margin-bottom:12px">
@@ -785,6 +793,14 @@ export default {
     </div>
   </div>
 
+  <div class="card wide" style="border-color:rgba(139,92,246,0.4)">
+    <h2 style="color:#c084fc">✍️ <span class="lang-zh">微调人格 (System Prompt)</span><span class="lang-en">Fine-tune Persona (System Prompt)</span></h2>
+    <p><span class="lang-zh">直接编辑人格配置文本，保存后下一次触发即生效</span><span class="lang-en">Edit persona text directly; takes effect on next trigger</span></p>
+    <textarea id="skill-text">${(agent.skill_text ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+    <button class="btn btn-primary" onclick="saveSkill('${agentId}')">💾 <span class="lang-zh">保存人格</span><span class="lang-en">Save Persona</span></button>
+    <span id="skill-status" class="status-tag"></span>
+  </div>
+
   <div class="section-title"><span class="lang-zh">配置调节</span><span class="lang-en">Configuration</span></div>
   <div class="card-grid">
     <div class="card wide" style="border-color:rgba(37,99,235,0.4)">
@@ -864,13 +880,6 @@ export default {
       <span id="vip-status" class="status-tag"></span>
     </div>
 
-    <div class="card wide" style="border-color:rgba(139,92,246,0.4)">
-      <h2 style="color:#c084fc">✍️ <span class="lang-zh">微调人格 (System Prompt)</span><span class="lang-en">Fine-tune Persona (System Prompt)</span></h2>
-      <p><span class="lang-zh">直接编辑人格配置文本，保存后下一次触发即生效</span><span class="lang-en">Edit persona text directly; takes effect on next trigger</span></p>
-      <textarea id="skill-text">${(agent.skill_text ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
-      <button class="btn btn-primary" onclick="saveSkill('${agentId}')">💾 <span class="lang-zh">保存人格</span><span class="lang-en">Save Persona</span></button>
-      <span id="skill-status" class="status-tag"></span>
-    </div>
 
     <div class="card wide" style="border-color:rgba(239,68,68,0.4)">
       <h2 style="color:#f87171">🔑 <span class="lang-zh">控制台密码</span><span class="lang-en">Dashboard Secret</span></h2>
@@ -1180,6 +1189,28 @@ export default {
       st.textContent = d.ok ? (isEn ? '✅ Saved' : '✅ 已保存') : '❌ ' + d.error;
       st.style.color = d.ok ? '#86efac' : '#f87171';
     } catch(e) { st.textContent = '❌ ' + e.message; st.style.color = '#f87171'; }
+  }
+
+  async function startOAuth() {
+    // window.open must be called synchronously in the click handler to avoid popup blockers
+    var popup = window.open('about:blank', 'oauth', 'width=600,height=700');
+    try {
+      var r = await fetch('/api/oauth/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentOrigin: window.location.origin })
+      });
+      var d = await r.json();
+      if (d.authUrl) {
+        popup.location.href = d.authUrl;
+      } else {
+        popup.close();
+        alert('OAuth error: ' + (d.error || 'Unknown error'));
+      }
+    } catch(e) {
+      popup.close();
+      alert('OAuth error: ' + e.message);
+    }
   }
 
   async function saveSkill(id) {
