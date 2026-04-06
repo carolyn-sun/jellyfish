@@ -120,31 +120,8 @@ h3.section{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppe
 
 <div class="card" id="mainCard">
 
-<!-- ── Step 1: Gemini ── -->
+<!-- ── Step 1: Authorization ── -->
 <div class="step-panel active" id="s1">
-  <h2>⚡ Gemini 配置</h2>
-  <div class="subtitle">输入你的 Gemini API Key 和模型名称。</div>
-  <div class="field"><label>Gemini API Key</label>
-    <input type="password" id="geminiKey" placeholder="AIza..."></div>
-  <div class="field"><label>模型名称</label>
-    <div style="display:flex;gap:8px">
-      <select id="geminiModelSelect" style="flex:1" onchange="handleModelChange()">
-        <option value="" disabled selected>👉 请点右侧拉取列表 或 选择下方填入</option>
-        <option value="_custom_">✍️ 手动输入...</option>
-      </select>
-      <input type="text" id="geminiModelCustom" style="display:none;flex:1" value="" placeholder="填入具体的模型名...">
-      <button class="btn btn-ghost" id="fetchModelsBtn" onclick="fetchModels()">下拉列表空？点此拉取</button>
-    </div>
-    <div class="hint">填入 API Key 后点击按钮即可拉取该 Key 支持的所有可用模型</div></div>
-  <div id="err1" class="alert alert-error"></div>
-  <div class="row" style="margin-top:24px">
-    <span class="spacer"></span>
-    <button class="btn btn-primary" onclick="go(2)">下一步 →</button>
-  </div>
-</div>
-
-<!-- ── Step 2: Authorization ── -->
-<div class="step-panel" id="s2">
   <h2>🔐 X 账号授权</h2>
   <div class="subtitle">授权 Agent 的 X 账号，获取 Refresh Token。</div>
 
@@ -166,11 +143,34 @@ h3.section{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppe
     <div id="manualDone" style="display:none;margin-top:8px" class="alert alert-success show">✅ 已使用手动输入的 Token。</div>
   </div>
 
+  <div id="err1" class="alert alert-error"></div>
+  <div class="row" style="margin-top:24px">
+    <span class="spacer"></span>
+    <button class="btn btn-primary" id="s1next" disabled onclick="go(2)">下一步 →</button>
+  </div>
+</div>
+
+<!-- ── Step 2: Gemini ── -->
+<div class="step-panel" id="s2">
+  <h2>⚡ Gemini 配置</h2>
+  <div class="subtitle">输入你的 Gemini API Key 和模型名称。</div>
+  <div class="field"><label>Gemini API Key</label>
+    <input type="password" id="geminiKey" placeholder="AIza..."></div>
+  <div class="field"><label>模型名称</label>
+    <div style="display:flex;gap:8px">
+      <select id="geminiModelSelect" style="flex:1" onchange="handleModelChange()">
+        <option value="" disabled selected>👉 请点右侧拉取列表 或 选择下方填入</option>
+        <option value="_custom_">✍️ 手动输入...</option>
+      </select>
+      <input type="text" id="geminiModelCustom" style="display:none;flex:1" value="" placeholder="填入具体的模型名...">
+      <button class="btn btn-ghost" id="fetchModelsBtn" onclick="fetchModels()">下拉列表空？点此拉取</button>
+    </div>
+    <div class="hint">填入 API Key 后点击按钮即可拉取该 Key 支持的所有可用模型</div></div>
   <div id="err2" class="alert alert-error"></div>
   <div class="row" style="margin-top:24px">
     <button class="btn btn-ghost" onclick="go(1)">← 返回</button>
     <span class="spacer"></span>
-    <button class="btn btn-primary" id="s2next" disabled onclick="go(3)">下一步 →</button>
+    <button class="btn btn-primary" onclick="go(3)">下一步 →</button>
   </div>
 </div>
 
@@ -352,7 +352,7 @@ const S = {
 };
 
 // ── Step labels ────────────────────────────────────────────────────────────────
-const STEPS = ['Gemini','授权','身份','蒸馏','调教','经济','记忆','部署'];
+const STEPS = ['授权','Gemini','身份','蒸馏','调教','经济','记忆','部署'];
 function buildNav() {
   const nav = $('stepNav');
   nav.innerHTML = '';
@@ -379,8 +379,8 @@ function clearErr(id) { const el = $(id); if(el) el.className = 'alert alert-err
 // ── Models ────────────────────────────────────────────────────────────────────
 async function fetchModels() {
   const key = $('geminiKey').value.trim();
-  if (!key) { showErr('err1', '请先输入 API Key'); return; }
-  clearErr('err1');
+  if (!key) { showErr('err2', '请先输入 API Key'); return; }
+  clearErr('err2');
   const btn = $('fetchModelsBtn');
   btn.disabled = true; btn.textContent = '拉取中...';
   try {
@@ -396,14 +396,14 @@ async function fetchModels() {
       if (!$('geminiModelCustom').value || $('geminiModelCustom').value === 'gemini-2.5-pro') {
           $('geminiModelSelect').value = r.models[0];
       }
-      showErr('err1', `✅ 成功拉取 ${r.models.length} 个模型 (已展开到列表)`);
-      $('err1').className = 'alert alert-success show';
+      showErr('err2', `✅ 成功拉取 ${r.models.length} 个模型 (已展开到列表)`);
+      $('err2').className = 'alert alert-success show';
     } else {
-      showErr('err1', '未找到可用的模型');
+      showErr('err2', '未找到可用的模型');
     }
   } catch (err) {
     btn.disabled = false; btn.textContent = '更新列表';
-    showErr('err1', String(err));
+    showErr('err2', String(err));
   }
 }
 
@@ -430,15 +430,15 @@ async function go(n) {
 }
 
 function validate(step) {
-  if (step === 1) {
+  if (step === 1 && !S.refreshToken) { showErr('err1','请先完成授权或填入 Refresh Token'); return false; }
+  if (step === 2) {
     let mode = $('geminiModelSelect').style.display !== 'none' ? $('geminiModelSelect').value : $('geminiModelCustom').value;
-    if (mode === '_custom_' && !$('geminiModelCustom').value.trim()) { showErr('err1','请输入模型名称'); return false; }
+    if (mode === '_custom_' && !$('geminiModelCustom').value.trim()) { showErr('err2','请输入模型名称'); return false; }
     if (mode !== '_custom_') $('geminiModelCustom').value = mode; // keep hidden input in sync for collection
 
-    if (!$('geminiKey').value.trim()) { showErr('err1','请输入 Gemini API Key'); return false; }
-    if (!$('geminiModelCustom').value.trim()) { showErr('err1','请输入模型名称'); return false; }
+    if (!$('geminiKey').value.trim()) { showErr('err2','请输入 Gemini API Key'); return false; }
+    if (!$('geminiModelCustom').value.trim()) { showErr('err2','请输入模型名称'); return false; }
   }
-  if (step === 2 && !S.refreshToken) { showErr('err2','请先完成授权或填入 Refresh Token'); return false; }
   if (step === 3) {
     if (!$('agentName').value.trim()) { showErr('err3','请输入展示名称'); return false; }
     if (!$('agentHandle').value.trim()) { showErr('err3','请输入 @handle'); return false; }
@@ -446,7 +446,7 @@ function validate(step) {
   }
   if (step === 4 && !$('skillText').value.trim()) { showErr('err4','请等待蒸馏完成或手动填入人格配置'); return false; }
   // collect
-  if (step === 1) { S.geminiKey = $('geminiKey').value.trim(); S.geminiModel = $('geminiModelCustom').value.trim(); }
+  if (step === 2) { S.geminiKey = $('geminiKey').value.trim(); S.geminiModel = $('geminiModelCustom').value.trim(); }
   if (step === 3) {
     S.agentName = $('agentName').value.trim();
     S.agentHandle = $('agentHandle').value.trim();
@@ -461,9 +461,9 @@ function validate(step) {
 let oauthPollTimer = null;
 async function startOAuth() {
   $('oauthBtn').disabled = true;
-  clearErr('err2');
+  clearErr('err1');
   const r = await api('/api/oauth/start', {});
-  if (r.error) { showErr('err2', r.error); $('oauthBtn').disabled = false; return; }
+  if (r.error) { showErr('err1', r.error); $('oauthBtn').disabled = false; return; }
   
   const authWin = window.open(r.authUrl, '_blank');
   $('oauthStatus').style.display = 'flex';
@@ -474,7 +474,7 @@ async function startOAuth() {
       clearInterval(checkClosedTimer);
       clearInterval(oauthPollTimer);
       if ($('oauthDone').style.display !== 'block') { // Not completed yet
-        showErr('err2', '⚠️ 授权窗口已被关闭。如果不小心关掉的，可以点击上面重试。');
+        showErr('err1', '⚠️ 授权窗口已被关闭。如果不小心关掉的，可以点击上面重试。');
         $('oauthBtn').disabled = false;
         $('oauthStatus').style.display = 'none';
       }
@@ -489,11 +489,11 @@ async function startOAuth() {
       S.accessToken = res.accessToken; S.refreshToken = res.refreshToken;
       $('oauthStatus').style.display = 'none';
       $('oauthDone').style.display = 'block';
-      $('s2next').disabled = false;
+      $('s1next').disabled = false;
     } else if (res.status === 'error') {
       clearInterval(oauthPollTimer);
       clearInterval(checkClosedTimer);
-      showErr('err2', res.error ?? 'OAuth failed');
+      showErr('err1', res.error ?? 'OAuth failed');
       $('oauthBtn').disabled = false; $('oauthStatus').style.display = 'none';
     }
   }, 1500);
@@ -501,12 +501,12 @@ async function startOAuth() {
 
 async function useManualToken() {
   const rt = $('manualRefresh').value.trim();
-  if (!rt) { showErr('err2','请填入 Refresh Token'); return; }
+  if (!rt) { showErr('err1','请填入 Refresh Token'); return; }
   const r = await api('/api/oauth/refresh', { refreshToken: rt });
-  if (r.error) { showErr('err2','Token 验证失败：' + r.error); return; }
+  if (r.error) { showErr('err1','Token 验证失败：' + r.error); return; }
   S.refreshToken = rt; S.accessToken = r.accessToken;
   $('manualDone').style.display = 'block';
-  $('s2next').disabled = false;
+  $('s1next').disabled = false;
 }
 
 // ── Distill ────────────────────────────────────────────────────────────────────
