@@ -9,10 +9,8 @@ globs = ["**/*.html"]
 fallbacks = []
 fallthrough = true
 
-[triggers]
-crons = [
-  "* * * * *"     # Master poll, index.ts derives intervals from Time.
-]
+# [triggers]
+# crons = [ "* * * * *" ]
 
 # ── KV Namespaces ──────────────────────────────────────────────────────────────
 # Create with: npx wrangler kv namespace create AGENT_STATE
