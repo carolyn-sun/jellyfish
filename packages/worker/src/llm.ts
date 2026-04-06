@@ -1,29 +1,25 @@
 import { GoogleGenAI } from '@google/genai';
 import type { Content } from '@google/genai';
-import type { Env, ConversationTurn, XTweet, InteractionMemory, VipEntry } from './types.ts';
+import type { Env, AgentDbRecord, ConversationTurn, XTweet, InteractionMemory, VipEntry } from './types.ts';
 import { getSkill } from './memory.ts';
-import { agentConfig } from './config.ts';
-
-
-
 
 // ─── Create a per-request GenAI client ────────────────────────────────────────
-function getClient(env: Env): GoogleGenAI {
-  return new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+function getClient(agent: AgentDbRecord): GoogleGenAI {
+  return new GoogleGenAI({ apiKey: agent.gemini_api_key });
 }
 
 // ─── Core generation helper ───────────────────────────────────────────────────
 async function generate(
-  env: Env,
+  agent: AgentDbRecord,
   systemInstruction: string,
   contents: Content[],
   maxOutputTokens = 200,
   temperature = 0.82,
 ): Promise<string> {
-  const ai = getClient(env);
+  const ai = getClient(agent);
 
   const response = await ai.models.generateContent({
-    model: agentConfig.geminiModel,
+    model: agent.gemini_model,
     contents,
     config: {
       systemInstruction,
@@ -31,7 +27,6 @@ async function generate(
       temperature,
     },
   });
-
 
   const candidate = response.candidates?.[0];
   const finishReason = candidate?.finishReason;
@@ -47,18 +42,18 @@ async function generate(
 }
 
 // ─── VIP resolution ───────────────────────────────────────────────────────────
-function resolveVip(username?: string): VipEntry | undefined {
+function resolveVip(agent: AgentDbRecord, username?: string): VipEntry | undefined {
   if (!username) return undefined;
-  return agentConfig.vipList.find(
+  return agent.vip_list.find(
     v => v.username.toLowerCase() === username?.toLowerCase()
   );
 }
 
 // ─── Build per-user persona override instruction ───────────────────────────────
 // For mention context (someone @-ing the agent):
-function buildMentionOverride(vip: VipEntry | undefined): string {
+function buildMentionOverride(agent: AgentDbRecord, vip: VipEntry | undefined): string {
   if (!vip) {
-    const skipPct = Math.round((1 - agentConfig.defaultReplyProbability) * 100);
+    const skipPct = Math.round((1 - agent.reply_pct) * 100);
     return `\n\n【⚠️ 非重点用户】\n当前搭话者不在你的重点关注名单中，请严格保持日常的冷淡设定：约 ${skipPct}% 的情况下请直接输出 "<skip>"（已读不回）。若要回复，文字必须极短干瘪。绝对不要对路人过分热情。`;
   }
 
@@ -72,10 +67,10 @@ function buildMentionOverride(vip: VipEntry | undefined): string {
 }
 
 // For timeline context (agent scrolling timeline, seeing a post):
-function buildTimelineOverride(vip: VipEntry | undefined): string {
+function buildTimelineOverride(agent: AgentDbRecord, vip: VipEntry | undefined): string {
   if (!vip) {
-    const likePct = Math.round(agentConfig.defaultLikeProbability * 100);
-    const skipPct = Math.round((1 - agentConfig.defaultLikeProbability) * 100);
+    const likePct = Math.round(agent.like_pct * 100);
+    const skipPct = Math.round((1 - agent.like_pct) * 100);
     return `\n\n【普通时间线】\n该推文来自普通用户，请恢复你懒散的社交状态：约 ${likePct}% 随手点赞 "<like>"，约 ${skipPct}% 直接划走 "<skip>"，极少开口评论文字。`;
   }
 
@@ -107,10 +102,11 @@ function buildContents(thread: ConversationTurn[], ownUserId: string): Content[]
 // ─── Generate a reply to a mention ────────────────────────────────────────────
 export async function generateReply(
   env: Env,
+  agent: AgentDbRecord,
   thread: ConversationTurn[],
   ownUserId: string,
 ): Promise<string> {
-  const skill = await getSkill(env);
+  const skill = await getSkill(env, agent.id);
 
   const contents = buildContents(thread, ownUserId);
 
@@ -119,23 +115,24 @@ export async function generateReply(
   }
 
   const lastTurn = thread[thread.length - 1];
-  const vip = resolveVip(lastTurn?.authorUsername);
-  const overrideInstruction = buildMentionOverride(vip);
+  const vip = resolveVip(agent, lastTurn?.authorUsername);
+  const overrideInstruction = buildMentionOverride(agent, vip);
 
-  const skipPct = Math.round((1 - agentConfig.defaultReplyProbability) * 100);
+  const skipPct = Math.round((1 - agent.reply_pct) * 100);
 
   const systemInstruction = `${skill}\n\n【⚠️ 回复规则】\n作为一个社交能量极度匮乏的 AI 人格，你绝大部分时间都不想开口。\n面对别人的回复或提及，约 ${skipPct}% 的情况下你会选择"已读不回"（直接且仅仅输出 "<skip>"）。\n只有当遇到非常荒谬、触动你或不得不说的话题时，你才会回复。若要回复，文字必须极其简短干瘪。${overrideInstruction}`;
 
-  const text = await generate(env, systemInstruction, contents, 2000, 1.1);
+  const text = await generate(agent, systemInstruction, contents, 2000, 1.1);
   return text.slice(0, 280);
 }
 
 // ─── Generate a spontaneous tweet (no mention trigger) ────────────────────────
 export async function generateSpontaneousTweet(
   env: Env,
+  agent: AgentDbRecord,
   recentPosts: string[] = [],
 ): Promise<string> {
-  const skill = await getSkill(env);
+  const skill = await getSkill(env, agent.id);
 
   const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
   const seeds = [
@@ -158,22 +155,23 @@ export async function generateSpontaneousTweet(
     parts: [{ text: `现在是 ${now}。请你以角色身份，围绕「${seed}」这个方向，自发地发一条推文。不要解释或重复这个方向，直接输出推文文字。文字必须极其简短干瘪，严格控制在 20 字以内。${antiRepeatBlock}` }],
   }];
 
-  const text = await generate(env, skill, contents, 2000, 1.1);
+  const text = await generate(agent, skill, contents, 2000, 1.1);
   return text.slice(0, 280);
 }
 
 // ─── Evaluate a timeline tweet ────────────────────────────────────────────────
 export async function evaluateTimelineTweet(
   env: Env,
+  agent: AgentDbRecord,
   tweetText: string,
   authorUsername: string,
   replies: Array<{ authorUsername: string; text: string }> = [],
 ): Promise<string> {
-  const skill = await getSkill(env);
-  const vip = resolveVip(authorUsername);
-  const overrideInstruction = buildTimelineOverride(vip);
+  const skill = await getSkill(env, agent.id);
+  const vip = resolveVip(agent, authorUsername);
+  const overrideInstruction = buildTimelineOverride(agent, vip);
 
-  const likePct = Math.round(agentConfig.defaultLikeProbability * 100);
+  const likePct = Math.round(agent.like_pct * 100);
 
   const systemInstruction = `${skill}
 
@@ -202,13 +200,14 @@ export async function evaluateTimelineTweet(
     parts: [{ text: tweetBlock }],
   }];
 
-  const text = await generate(env, systemInstruction, contents, 2000, 1.0);
+  const text = await generate(agent, systemInstruction, contents, 2000, 1.0);
   return text.trim();
 }
 
 // ─── Evolve personality skill based on interaction memories ──────────────────
 export async function evolvePersonalitySkill(
   env: Env,
+  agent: AgentDbRecord,
   currentSkill: string,
   memories: InteractionMemory[],
 ): Promise<string> {
@@ -231,6 +230,6 @@ export async function evolvePersonalitySkill(
     parts: [{ text: contentText }],
   }];
 
-  const text = await generate(env, systemInstruction, contents, 4000, 0.4);
+  const text = await generate(agent, systemInstruction, contents, 4000, 0.4);
   return text.trim();
 }

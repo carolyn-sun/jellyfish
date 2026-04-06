@@ -1,4 +1,4 @@
-import type {
+import type { AgentDbRecord, 
   Env,
   TweetPayload,
   TweetResponse,
@@ -18,11 +18,11 @@ const MEDIA_FIELDS = 'media_key,type,url,preview_image_url';
 
 // ─── Core request helper ───────────────────────────────────────────────────────
 export async function xFetch(
-  env: Env,
+  env: Env, agent: AgentDbRecord,
   path: string,
   options: RequestInit = {},
 ): Promise<Response> {
-  const accessToken = await getValidAccessToken(env);
+  const accessToken = await getValidAccessToken(env, agent);
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -83,8 +83,8 @@ export function describeMedia(tweet: XTweet, mediaMap: Map<string, XMedia>): str
 }
 
 // ─── Get own user info ─────────────────────────────────────────────────────────
-export async function getMe(env: Env): Promise<{ id: string; name: string; username: string }> {
-  const res = await xFetch(env, '/users/me');
+export async function getMe(env: Env, agent: AgentDbRecord): Promise<{ id: string; name: string; username: string }> {
+  const res = await xFetch(env, agent, '/users/me');
   if (!res.ok) throw new Error(`[twitter] GET /users/me failed ${res.status}: ${await res.text()}`);
   const json = (await res.json()) as { data: { id: string; name: string; username: string } };
   return json.data;
@@ -92,7 +92,7 @@ export async function getMe(env: Env): Promise<{ id: string; name: string; usern
 
 // ─── Get recent mentions ───────────────────────────────────────────────────────
 export async function getMentions(
-  env: Env,
+  env: Env, agent: AgentDbRecord,
   userId: string,
   sinceId?: string,
   maxResults = 10,
@@ -108,7 +108,7 @@ export async function getMentions(
     params.set('since_id', sinceId);
   }
 
-  const res = await xFetch(env, `/users/${userId}/mentions?${params}`);
+  const res = await xFetch(env, agent, `/users/${userId}/mentions?${params}`);
 
   if (res.status === 404 || res.status === 401) {
     throw new Error(`[twitter] GET mentions failed ${res.status}: ${await res.text()}`);
@@ -123,14 +123,14 @@ export async function getMentions(
 }
 
 // ─── Fetch a single tweet by ID ────────────────────────────────────────────────
-export async function getTweetLookup(env: Env, tweetId: string): Promise<XTweetLookupResponse | null> {
+export async function getTweetLookup(env: Env, agent: AgentDbRecord, tweetId: string): Promise<XTweetLookupResponse | null> {
   const params = new URLSearchParams({
     'tweet.fields': TWEET_FIELDS,
     expansions: EXPANSIONS,
     'media.fields': MEDIA_FIELDS,
   });
 
-  const res = await xFetch(env, `/tweets/${tweetId}?${params}`);
+  const res = await xFetch(env, agent, `/tweets/${tweetId}?${params}`);
   if (!res.ok) {
     console.warn(`[twitter] GET /tweets/${tweetId} failed ${res.status}`);
     return null;
@@ -139,7 +139,7 @@ export async function getTweetLookup(env: Env, tweetId: string): Promise<XTweetL
   return res.json() as Promise<XTweetLookupResponse>;
 }
 
-export async function getTweet(env: Env, tweetId: string): Promise<XTweet | null> {
+export async function getTweet(env: Env, agent: AgentDbRecord, tweetId: string): Promise<XTweet | null> {
   const json = await getTweetLookup(env, tweetId);
   return json?.data ?? null;
 }
@@ -147,7 +147,7 @@ export async function getTweet(env: Env, tweetId: string): Promise<XTweet | null
 // ─── Build conversation thread by walking up referenced_tweets ─────────────────
 // Returns tweets from oldest to newest.
 export async function fetchThreadContext(
-  env: Env,
+  env: Env, agent: AgentDbRecord,
   mention: XTweet,
   mediaMap: Map<string, XMedia>,
   userMap: Map<string, string>,
@@ -179,8 +179,8 @@ export async function fetchThreadContext(
 }
 
 // ─── Post a tweet (or reply) ───────────────────────────────────────────────────
-export async function postTweet(env: Env, payload: TweetPayload): Promise<TweetResponse> {
-  const res = await xFetch(env, '/tweets', {
+export async function postTweet(env: Env, agent: AgentDbRecord, payload: TweetPayload): Promise<TweetResponse> {
+  const res = await xFetch(env, agent, '/tweets', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -194,10 +194,10 @@ export async function postTweet(env: Env, payload: TweetPayload): Promise<TweetR
 
 // ─── Look up a user by username ────────────────────────────────────────────────
 export async function getUserByUsername(
-  env: Env,
+  env: Env, agent: AgentDbRecord,
   username: string,
 ): Promise<{ id: string; name: string; username: string } | null> {
-  const res = await xFetch(env, `/users/by/username/${username}`);
+  const res = await xFetch(env, agent, `/users/by/username/${username}`);
 
   if (!res.ok) {
     console.warn(`[twitter] GET /users/by/username/${username} failed ${res.status}`);
@@ -210,7 +210,7 @@ export async function getUserByUsername(
 
 // ─── Get recent tweets from a user ────────────────────────────────────────────
 export async function getUserTweets(
-  env: Env,
+  env: Env, agent: AgentDbRecord,
   userId: string,
   maxResults = 20,
 ): Promise<XTweet[]> {
@@ -222,7 +222,7 @@ export async function getUserTweets(
     exclude: 'retweets',
   });
 
-  const res = await xFetch(env, `/users/${userId}/tweets?${params}`);
+  const res = await xFetch(env, agent, `/users/${userId}/tweets?${params}`);
 
   if (!res.ok) {
     console.warn(`[twitter] GET /users/${userId}/tweets failed ${res.status}`);
@@ -235,7 +235,7 @@ export async function getUserTweets(
 
 // ─── Get the accounts the user follows ────────────────────────────────────────
 export async function getFollowing(
-  env: Env,
+  env: Env, agent: AgentDbRecord,
   userId: string,
   maxResults = 100,
 ): Promise<{ id: string; name: string; username: string }[]> {
@@ -243,7 +243,7 @@ export async function getFollowing(
     max_results: String(maxResults),
   });
 
-  const res = await xFetch(env, `/users/${userId}/following?${params}`);
+  const res = await xFetch(env, agent, `/users/${userId}/following?${params}`);
   if (!res.ok) {
     const errorBody = await res.text();
     console.warn(`[twitter] GET /users/${userId}/following failed ${res.status}: ${errorBody}`);
@@ -256,11 +256,11 @@ export async function getFollowing(
 
 // ─── Like a tweet ──────────────────────────────────────────────────────────────
 export async function likeTweet(
-  env: Env,
+  env: Env, agent: AgentDbRecord,
   userId: string,
   tweetId: string,
 ): Promise<boolean> {
-  const res = await xFetch(env, `/users/${userId}/likes`, {
+  const res = await xFetch(env, agent, `/users/${userId}/likes`, {
     method: 'POST',
     body: JSON.stringify({ tweet_id: tweetId }),
   });
@@ -274,11 +274,11 @@ export async function likeTweet(
 
 // ─── Follow a user ─────────────────────────────────────────────────────────────
 export async function followUser(
-  env: Env,
+  env: Env, agent: AgentDbRecord,
   userId: string,
   targetUserId: string,
 ): Promise<boolean> {
-  const res = await xFetch(env, `/users/${userId}/following`, {
+  const res = await xFetch(env, agent, `/users/${userId}/following`, {
     method: 'POST',
     body: JSON.stringify({ target_user_id: targetUserId }),
   });
@@ -292,7 +292,7 @@ export async function followUser(
 
 // ─── Fetch top replies to a tweet via conversation search ──────────────────────
 export async function getTweetReplies(
-  env: Env,
+  env: Env, agent: AgentDbRecord,
   tweet: XTweet,
   maxResults = 3,
 ): Promise<Array<{ authorUsername: string; text: string }>> {
@@ -307,7 +307,7 @@ export async function getTweetReplies(
   });
 
   try {
-    const res = await xFetch(env, `/tweets/search/recent?${params}`);
+    const res = await xFetch(env, agent, `/tweets/search/recent?${params}`);
     if (!res.ok) {
       console.warn(`[twitter] getTweetReplies failed ${res.status} for conversation ${conversationId}`);
       return [];

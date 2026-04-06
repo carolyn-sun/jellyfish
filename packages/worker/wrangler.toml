@@ -22,9 +22,15 @@ crons = [
 binding = "AGENT_STATE"
 id = "PLACEHOLDER_REPLACE_WITH_YOUR_KV_ID"
 
+# ── D1 Database ────────────────────────────────────────────────────────────────
+# Create with: npx wrangler d1 create agent_saas
+# Then copy the output into the fields below.
+[[d1_databases]]
+binding = "DB"
+database_name = "agent_saas"
+database_id = "PLACEHOLDER_REPLACE_WITH_YOUR_D1_ID"
+
 # ── Secrets (set via `npx wrangler secret put <NAME>`) ────────────────────────
-# X_CLIENT_ID        — X App OAuth 2.0 Client ID
-# X_CLIENT_SECRET    — X App OAuth 2.0 Client Secret
-# X_REFRESH_TOKEN    — Long-lived refresh token (from one-time OAuth auth flow)
-# GEMINI_API_KEY     — Google Gemini API key
+# X_CLIENT_ID        — X App OAuth 2.0 Client ID (Platform-wide)
+# X_CLIENT_SECRET    — X App OAuth 2.0 Client Secret (Platform-wide)
 # ADMIN_SECRET       — Secret header value for protected admin dashboard

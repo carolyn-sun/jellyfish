@@ -26,47 +26,39 @@ export interface CronSchedules {
   nightlyEvolution: string;
 }
 
-export interface AgentConfig {
-  /** Display name of the agent, used in the admin dashboard title */
-  agentName: string;
-  /** X @handle the agent operates as (for display only; actual auth is via tokens) */
-  agentHandle: string;
-  /** X accounts whose tweets were used to distill the persona (used for debug endpoint) */
-  sourceAccounts: string[];
-  /** Gemini model identifier, e.g. "gemini-2.5-pro" */
-  geminiModel: string;
-  /** 0–1 probability that the agent replies to a non-VIP mention (rest → <skip>) */
-  defaultReplyProbability: number;
-  /** 0–1 probability that the agent likes a non-VIP timeline tweet */
-  defaultLikeProbability: number;
-  /** Special persona rules per user */
-  vipList: VipEntry[];
-  /**
-   * Which users' interactions are absorbed into long-term memory.
-   * 'all' = everyone, or array of specific usernames.
-   */
-  memoryWhitelist: string[] | 'all';
-  /** Whether to run the nightly personality evolution cycle */
-  enableNightlyEvolution: boolean;
-  /** Minimum days between spontaneous tweets */
-  spontaneousCooldownDays: number;
-  /** Cron schedule strings — must match entries in wrangler.toml */
-  cronSchedules: CronSchedules;
+export interface AgentDbRecord {
+  id: string;
+  owner_id: string;
+  agent_name: string;
+  agent_handle: string;
+  source_accounts: string[]; // parsed
+  gemini_model: string;
+  gemini_api_key: string;
+  refresh_token: string;
+  access_token: string | null;
+  token_expires_at: number;
+  skill_text: string;
+  reply_pct: number;
+  like_pct: number;
+  cooldown_days: number;
+  auto_evo: boolean;
+  vip_list: VipEntry[]; // parsed
+  mem_whitelist: string[] | 'all'; // parsed
+  created_at: number;
+  status: string;
 }
 
 // ─── Environment bindings (Cloudflare Worker) ─────────────────────────────────
 
 export interface Env {
+  /** Database for all configurations */
+  DB: D1Database;
   /** KV namespace for all persistent agent state */
   AGENT_STATE: KVNamespace;
   /** X App OAuth 2.0 Client ID */
   X_CLIENT_ID: string;
   /** X App OAuth 2.0 Client Secret */
   X_CLIENT_SECRET: string;
-  /** Long-lived refresh token obtained from the one-time auth flow */
-  X_REFRESH_TOKEN: string;
-  /** Google Gemini API key */
-  GEMINI_API_KEY: string;
   /** Secret value for protected admin endpoints (header or ?secret= param) */
   ADMIN_SECRET: string;
 }

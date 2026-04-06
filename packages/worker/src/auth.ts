@@ -1,21 +1,11 @@
-import type { Env, XTokenResponse, StoredTokens } from './types.ts';
-import { getStoredTokens, saveTokens } from './memory.ts';
+import type { Env, XTokenResponse, AgentDbRecord } from './types.ts';
 
 const TOKEN_URL = 'https://api.twitter.com/2/oauth2/token';
 
 // Refresh a minute before actual expiry to avoid races
 const EXPIRY_BUFFER_MS = 60_000;
 
-// ─── Bootstrap: import the initial refresh token from secrets ──────────────────
-// On first run, there are no tokens in KV yet.
-// We bootstrap from X_REFRESH_TOKEN secret and exchange it immediately.
-async function bootstrap(env: Env): Promise<StoredTokens> {
-  console.log('[auth] Bootstrapping tokens from secret...');
-  return refreshAccessToken(env, env.X_REFRESH_TOKEN);
-}
-
-// ─── Use refresh_token to get a new access_token ──────────────────────────────
-async function refreshAccessToken(env: Env, refreshToken: string): Promise<StoredTokens> {
+export async function refreshAccessToken(env: Env, agent: AgentDbRecord, refreshToken: string): Promise<string> {
   const credentials = btoa(`${env.X_CLIENT_ID}:${env.X_CLIENT_SECRET}`);
 
   const res = await fetch(TOKEN_URL, {
@@ -38,36 +28,30 @@ async function refreshAccessToken(env: Env, refreshToken: string): Promise<Store
 
   const json = (await res.json()) as XTokenResponse;
 
-  const tokens: StoredTokens = {
-    accessToken: json.access_token,
-    // X may or may not rotate the refresh token; fall back to existing one
-    refreshToken: json.refresh_token ?? refreshToken,
-    expiresAt: Date.now() + json.expires_in * 1000 - EXPIRY_BUFFER_MS,
-  };
+  const accessToken = json.access_token;
+  const newRefreshToken = json.refresh_token ?? refreshToken;
+  const expiresAt = Date.now() + json.expires_in * 1000 - EXPIRY_BUFFER_MS;
 
-  await saveTokens(env, tokens);
-  console.log('[auth] Tokens refreshed and saved.');
-  return tokens;
+  // Update in DB dynamically
+  await env.DB.prepare(
+    `UPDATE agents SET access_token = ?, refresh_token = ?, token_expires_at = ? WHERE id = ?`
+  ).bind(accessToken, newRefreshToken, expiresAt, agent.id).run();
+
+  // Update in-memory record so subsequent calls in the same event use it safely
+  agent.access_token = accessToken;
+  agent.refresh_token = newRefreshToken;
+  agent.token_expires_at = expiresAt;
+
+  console.log(`[auth] Tokens refreshed and saved for agent ${agent.id}`);
+  return accessToken;
 }
 
-// ─── Main export: get a valid access token ────────────────────────────────────
-export async function getValidAccessToken(env: Env): Promise<string> {
-  let tokens = await getStoredTokens(env);
-
-  if (!tokens) {
-    tokens = await bootstrap(env);
-    return tokens.accessToken;
+export async function getValidAccessToken(env: Env, agent: AgentDbRecord): Promise<string> {
+  // If we have an access token and it's not expired
+  if (agent.access_token && agent.token_expires_at && Date.now() < agent.token_expires_at) {
+    return agent.access_token;
   }
 
-  if (Date.now() >= tokens.expiresAt) {
-    console.log('[auth] Access token expired, refreshing...');
-    try {
-      tokens = await refreshAccessToken(env, tokens.refreshToken);
-    } catch (e) {
-      console.warn('[auth] Refresh failed with cached token, falling back to bootstrap from env secret...', e);
-      tokens = await bootstrap(env);
-    }
-  }
-
-  return tokens.accessToken;
+  console.log(`[auth] Access token expired or missing for agent ${agent.id}, refreshing...`);
+  return refreshAccessToken(env, agent, agent.refresh_token);
 }
