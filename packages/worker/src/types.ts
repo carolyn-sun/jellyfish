@@ -76,8 +76,6 @@ export interface Env {
   LOCAL_ORIGIN?: string;
   /** Ko-Fi Webhook verification token (set via wrangler secret put KO_FI_VERIFICATION_TOKEN) */
   KO_FI_VERIFICATION_TOKEN?: string;
-  /** Cloudflare static assets binding — automatically provided when [assets] is configured in wrangler.toml */
-  ASSETS: Fetcher;
 }
 
 // ─── X API types ───────────────────────────────────────────────────────────────
