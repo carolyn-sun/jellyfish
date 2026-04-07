@@ -70,24 +70,67 @@
 <div class="blob blob-1"></div>
 <div class="blob blob-2"></div>
 
-<!-- Auth Gate -->
+<!-- Auth Gate - Single Page Multi-Step Auth -->
 <div id="auth-gate">
-  <h2>🔐 <span class="lang-zh">进入控制台</span><span class="lang-en">Enter Dashboard</span></h2>
-  <div style="margin-top:16px">
+
+  <!-- Step 1: Find Agent by Handle (shown when no ?id= in URL) -->
+  <div id="auth-step-find" style="display:none">
+    <h2>🪼 <span class="lang-zh">进入控制台</span><span class="lang-en">Enter Dashboard</span></h2>
+    <p style="color:var(--text-muted);font-size:.88rem;margin:8px 0 20px">
+      <span class="lang-zh">输入你的 Agent 账号以继续</span>
+      <span class="lang-en">Enter your Agent's X handle to continue</span>
+    </p>
+    <div style="position:relative">
+      <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);opacity:.4;font-size:1rem;pointer-events:none">@</span>
+      <input type="text" id="find-handle" placeholder="Agent's X username" style="padding-left:28px;margin:0"
+        data-ph-zh="Agent 的 X 账号名" data-ph-en="Agent's X username">
+    </div>
+    <button class="btn btn-primary" id="find-handle-btn" onclick="doFindHandle()" style="width:100%;height:44px;margin-top:10px">
+      <span class="lang-zh">🔍 查找 Agent</span><span class="lang-en">🔍 Find Agent</span>
+    </button>
+    <div id="find-err" style="color:var(--error);font-size:.82rem;margin-top:10px;display:none"></div>
+  </div>
+
+  <!-- Step 2: Login Options (shown after agent found, or when ?id= present) -->
+  <div id="auth-step-login" style="display:none">
+    <div id="auth-agent-badge" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(255,255,255,0.04);border:1px solid var(--card-border);border-radius:12px;margin-bottom:20px">
+      <span style="font-size:1.2rem">🤖</span>
+      <div>
+        <div id="auth-agent-name" style="font-weight:600;font-size:.9rem"></div>
+        <div id="auth-agent-handle" style="font-size:.78rem;color:var(--text-muted)"></div>
+      </div>
+      <button id="auth-change-agent" onclick="showFindStep()" style="margin-left:auto;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.78rem;text-decoration:underline;white-space:nowrap">
+        <span class="lang-zh">切换</span><span class="lang-en">Change</span>
+      </button>
+    </div>
+    <h2 style="font-size:1.15rem;margin-bottom:16px">🔐 <span class="lang-zh">验证身份</span><span class="lang-en">Verify Identity</span></h2>
     <button class="btn btn-primary" onclick="startOAuth()" style="width:100%;height:44px;background:#1da1f2;margin-bottom:12px">
-      <span class="lang-zh">使用 X (Twitter) 登录</span><span class="lang-en">Log in with X (Twitter)</span>
+      <span class="lang-zh">使用 X (Twitter) 授权登录</span><span class="lang-en">Log in with X (Twitter)</span>
     </button>
     <div style="text-align:center;font-size:0.8rem;color:#71717a;margin-bottom:12px">
       <span class="lang-zh">或使用密码登录</span><span class="lang-en">OR login with password</span>
     </div>
-    <input type="password" id="secret-input" placeholder="Dashboard Secret" style="margin-bottom:14px">
+    <input type="password" id="secret-input" placeholder="Dashboard Secret" style="margin-bottom:10px">
     <button class="btn btn-ghost" onclick="doAuthSecret()" style="width:100%;height:44px">
       <span class="lang-zh">密码验证</span><span class="lang-en">Verify Password</span>
     </button>
+    <div id="auth-err" style="color:var(--error);font-size:.82rem;margin-top:10px;display:none"></div>
   </div>
-  <div id="auth-err" style="color:var(--error);font-size:.82rem;margin-top:10px;display:none">
-    <span class="lang-zh">验证失败</span><span class="lang-en">Verification failed</span>
+
+  <!-- Step 3: Verifying indicator -->
+  <div id="auth-step-verifying" style="display:none;text-align:center;padding:24px 0">
+    <div style="font-size:2rem;margin-bottom:12px">⏳</div>
+    <div style="font-weight:600;margin-bottom:6px">
+      <span class="lang-zh">正在验证身份…</span><span class="lang-en">Verifying identity…</span>
+    </div>
+    <div style="font-size:.82rem;color:var(--text-muted)">
+      <span class="lang-zh">请在弹出的授权窗口完成操作</span><span class="lang-en">Please complete the action in the popup window</span>
+    </div>
+    <button onclick="cancelVerify()" style="margin-top:16px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.82rem;text-decoration:underline">
+      <span class="lang-zh">取消</span><span class="lang-en">Cancel</span>
+    </button>
   </div>
+
 </div>
 
 <!-- Dashboard -->
@@ -316,10 +359,15 @@
 <script is:inline>
   // ── State ────────────────────────────────────────────────────────────────
   var _agentId = new URLSearchParams(location.search).get('id') || '';
+  var _agentIdFromUrl = !!_agentId; // true when agentId came directly from URL param (not via find step)
   var _agentData = null;
   var _vipList = [];
   var _wlHandles = [];
   var _sessionToken = sessionStorage.getItem('sessionToken') || '';
+  var _oauthPollTimer = null;
+  var _cachedAgentName = '';
+  var _cachedAgentHandle = '';
+
 
   function getApiUrl(path) {
     return path + '?id=' + _agentId;
@@ -331,56 +379,180 @@
     return h;
   }
 
-  // ── Auth ─────────────────────────────────────────────────────────────────
+  // ── Auth Gate UI helpers ──────────────────────────────────────────────────
+  function showFindStep() {
+    document.getElementById('auth-step-find').style.display = 'block';
+    document.getElementById('auth-step-login').style.display = 'none';
+    document.getElementById('auth-step-verifying').style.display = 'none';
+    document.getElementById('find-err').style.display = 'none';
+  }
+
+  function showLoginStep(agentName, agentHandle) {
+    _cachedAgentName = agentName || agentHandle || 'Agent';
+    _cachedAgentHandle = agentHandle || '';
+    document.getElementById('auth-agent-name').textContent = _cachedAgentName;
+    document.getElementById('auth-agent-handle').textContent = agentHandle ? '@' + agentHandle : '';
+    // Hide the "Change" button only when agentId came directly from the URL (user has a link)
+    document.getElementById('auth-change-agent').style.display = _agentIdFromUrl ? 'none' : '';
+    document.getElementById('auth-step-find').style.display = 'none';
+    document.getElementById('auth-step-login').style.display = 'block';
+    document.getElementById('auth-step-verifying').style.display = 'none';
+    document.getElementById('auth-err').style.display = 'none';
+  }
+
+  function showVerifyingStep() {
+    document.getElementById('auth-step-find').style.display = 'none';
+    document.getElementById('auth-step-login').style.display = 'none';
+    document.getElementById('auth-step-verifying').style.display = 'block';
+  }
+
+  function cancelVerify() {
+    if (_oauthPollTimer) { clearInterval(_oauthPollTimer); _oauthPollTimer = null; }
+    sessionStorage.removeItem('pendingOAuth');
+    showLoginStep(_cachedAgentName, _cachedAgentHandle);
+  }
+
+  // ── Find Agent by Handle ──────────────────────────────────────────────────
+  async function doFindHandle() {
+    var handle = (document.getElementById('find-handle').value || '').trim().replace(/^@/, '');
+    var errEl = document.getElementById('find-err');
+    var btn = document.getElementById('find-handle-btn');
+    var isEn = document.body.classList.contains('en-mode');
+    if (!handle) {
+      errEl.textContent = isEn ? 'Please enter an X handle' : '请输入 X 账号名';
+      errEl.style.display = 'block'; return;
+    }
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = isEn ? '⏳ Looking up...' : '⏳ 查找中...';
+    try {
+      var res = await fetch('/api/agent/find-by-handle?handle=' + encodeURIComponent(handle));
+      var d = await res.json();
+      if (d.agentId) {
+        _agentId = d.agentId;
+        // Update URL without reload so refresh doesn't lose state
+        history.replaceState({}, '', '/dashboard?id=' + encodeURIComponent(_agentId));
+        showLoginStep(d.name, d.handle);
+      } else {
+        errEl.textContent = isEn
+          ? 'No Agent found for @' + handle + '. Please deploy first.'
+          : '未找到 @' + handle + ' 对应的 Agent，请先完成部署';
+        errEl.style.display = 'block';
+      }
+    } catch(e) {
+      errEl.textContent = (isEn ? 'Lookup failed: ' : '查找失败：') + e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = isEn ? '🔍 Find Agent' : '🔍 查找 Agent';
+    }
+  }
+
+  document.getElementById('find-handle')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doFindHandle();
+  });
+
+  // ── Auth initialisation ───────────────────────────────────────────────────
   (function init() {
-    var saved = sessionStorage.getItem('dashSecret');
     _sessionToken = sessionStorage.getItem('sessionToken') || '';
+    var saved = sessionStorage.getItem('dashSecret');
+
     // Mobile resume: detect _oauthDone in URL after redirect from callback
     var urlParams = new URLSearchParams(window.location.search);
     var oauthDone = urlParams.get('_oauthDone');
     if (oauthDone) {
-      // Clean the URL
-      history.replaceState({}, '', window.location.pathname + window.location.search.replace(/[&?]_oauthDone=[^&]*/g, ''));
+      // Clean the extra params but keep ?id= if present
+      var cleanSearch = window.location.search
+        .replace(/[&?]_oauthDone=[^&]*/g, '')
+        .replace(/[&?]_sessionId=[^&]*/g, '');
+      history.replaceState({}, '', window.location.pathname + cleanSearch);
+
+      if (_sessionToken) { showDashboard(); return; }
+
+      // Try sessionStorage first, then fall back to URL _sessionId param
       var pending = JSON.parse(sessionStorage.getItem('pendingOAuth') || 'null');
-      if (pending && pending.sessionId) {
-        if (_sessionToken) { showDashboard(); }
-        startOAuthPolling(pending.sessionId, pending.type);
+      var sessionId = (pending && pending.sessionId) || urlParams.get('_sessionId');
+      var pendingType = (pending && pending.type) || (oauthDone === 'reauth' ? 'reauth' : 'login');
+      if (sessionId) {
+        showVerifyingStep();
+        startOAuthPolling(sessionId, pendingType);
         return;
       }
     }
+
     if (_sessionToken) { showDashboard(); return; }
-    if (saved) doAuthSecret(saved);
+
+    // If we already have an agentId in the URL, skip the find step
+    if (_agentId) {
+      // Try to load agent info for the badge, then show login
+      fetch('/api/agent/detail?id=' + _agentId)
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          showLoginStep(d.agent_name || '', d.agent_handle || '');
+          // Auto-try saved secret after we know the agent
+          if (saved && !_sessionToken) doAuthSecret(saved);
+        })
+        .catch(function() {
+          showLoginStep('', '');
+          if (saved && !_sessionToken) doAuthSecret(saved);
+        });
+    } else {
+      showFindStep();
+    }
   })();
+
 
   window.addEventListener('message', async (e) => {
     if (e.data && e.data.type === 'oauth_success') verifyOAuth(e.data.accessToken);
   });
 
   async function startOAuth() {
+    if (!_agentId) {
+      // Shouldn't happen, but guard in case
+      showFindStep();
+      return;
+    }
     try {
       var r = await fetch('/api/oauth/start', {
         method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ currentOrigin: window.location.origin })
       });
       var d = await r.json();
-      if (!d.authUrl) { alert('OAuth error: ' + (d.error || 'Unknown')); return; }
+      if (!d.authUrl) {
+        var errEl = document.getElementById('auth-err');
+        errEl.textContent = 'OAuth error: ' + (d.error || 'Unknown');
+        errEl.style.display = 'block';
+        return;
+      }
       // Save session for mobile resume (page may navigate away)
       sessionStorage.setItem('pendingOAuth', JSON.stringify({ sessionId: d.sessionId, type: 'login' }));
+      showVerifyingStep();
       var popup = window.open(d.authUrl, 'oauth', 'width=600,height=700');
-      if (!popup) { window.location.href = d.authUrl; return; } // mobile: redirect current tab
-      // Desktop: also poll as fallback alongside postMessage
-      startOAuthPolling(d.sessionId, 'login');
-    } catch(e) { alert('OAuth error: ' + e.message); }
+      if (!popup) {
+        // Mobile: redirect current tab to OAuth, callback will redirect back
+        window.location.href = d.authUrl;
+        return;
+      }
+      // Desktop: poll for completion
+      _oauthPollTimer = startOAuthPolling(d.sessionId, 'login', popup);
+    } catch(e) {
+      showLoginStep(_cachedAgentName, _cachedAgentHandle);
+      var errEl2 = document.getElementById('auth-err');
+      errEl2.textContent = 'OAuth error: ' + e.message;
+      errEl2.style.display = 'block';
+    }
   }
 
-  function startOAuthPolling(sessionId, type) {
+  function startOAuthPolling(sessionId, type, popup) {
     var timer = setInterval(async function() {
       try {
         var pr = await fetch('/api/oauth/result?sessionId=' + sessionId);
         var pd = await pr.json();
         if (pd.status === 'done') {
           clearInterval(timer);
+          _oauthPollTimer = null;
           sessionStorage.removeItem('pendingOAuth');
+          if (popup && !popup.closed) { try { popup.close(); } catch(e) {} }
           if (type === 'login' && pd.accessToken) {
             verifyOAuth(pd.accessToken);
           } else if (type === 'reauth') {
@@ -392,45 +564,81 @@
           }
         } else if (pd.status === 'error') {
           clearInterval(timer);
+          _oauthPollTimer = null;
           sessionStorage.removeItem('pendingOAuth');
-          if (type === 'reauth') {
+          if (popup && !popup.closed) { try { popup.close(); } catch(e) {} }
+          if (type === 'login') {
+            showLoginStep(_cachedAgentName, _cachedAgentHandle);
+            var errEl3 = document.getElementById('auth-err');
+            errEl3.textContent = '❌ ' + (pd.error || 'Authorization failed');
+            errEl3.style.display = 'block';
+          } else if (type === 'reauth') {
             var st2 = document.getElementById('reauth-status');
             var btn2 = document.getElementById('reauthBtn');
             if (st2) { st2.textContent = '❌ ' + (pd.error || 'Error'); st2.style.color = '#f87171'; }
             if (btn2) btn2.disabled = false;
           }
+        } else if (popup && popup.closed && pd.status !== 'done') {
+          // User closed popup without completing
+          clearInterval(timer);
+          _oauthPollTimer = null;
+          sessionStorage.removeItem('pendingOAuth');
+          showLoginStep(_cachedAgentName, _cachedAgentHandle);
+          var errEl4 = document.getElementById('auth-err');
+          errEl4.textContent = document.body.classList.contains('en-mode')
+            ? '⚠️ Authorization window was closed. Please try again.'
+            : '⚠️ 授权窗口已被关闭，请重试。';
+          errEl4.style.display = 'block';
         }
-      } catch(e) { clearInterval(timer); sessionStorage.removeItem('pendingOAuth'); }
+      } catch(e) { clearInterval(timer); _oauthPollTimer = null; sessionStorage.removeItem('pendingOAuth'); }
     }, 1500);
     return timer;
   }
 
   async function verifyOAuth(accessToken) {
-    document.getElementById('auth-err').style.display = 'none';
-    var r = await fetch('/api/agent/verify-owner', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ agentId: _agentId, accessToken })
-    });
-    var d = await r.json();
-    if (d.ok) {
-      _sessionToken = d.sessionToken || '';
-      sessionStorage.setItem('sessionToken', _sessionToken);
-      showDashboard();
-    } else {
-      var err = document.getElementById('auth-err');
-      err.style.display = 'block';
-      err.textContent = 'Auth failed: ' + (d.error || 'Handle mismatch');
+    if (!_agentId) {
+      showFindStep();
+      return;
+    }
+    showVerifyingStep();
+    try {
+      var r = await fetch('/api/agent/verify-owner', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ agentId: _agentId, accessToken })
+      });
+      var d = await r.json();
+      if (d.ok) {
+        _sessionToken = d.sessionToken || '';
+        sessionStorage.setItem('sessionToken', _sessionToken);
+        showDashboard();
+      } else {
+        showLoginStep(_cachedAgentName, _cachedAgentHandle);
+        var err = document.getElementById('auth-err');
+        var isEn = document.body.classList.contains('en-mode');
+        err.textContent = isEn
+          ? '❌ Auth failed: The authorized X account does not match this Agent (' + (d.agentHandle || '') + ')'
+          : '❌ 验证失败：授权的 X 账号与此 Agent 不匹配（' + (d.agentHandle || '') + '）';
+        err.style.display = 'block';
+      }
+    } catch(e) {
+      showLoginStep(_cachedAgentName, _cachedAgentHandle);
+      var errEl = document.getElementById('auth-err');
+      errEl.textContent = '❌ ' + e.message;
+      errEl.style.display = 'block';
     }
   }
 
   function doAuthSecret(prefill) {
-    document.getElementById('auth-err').style.display = 'none';
+    if (!_agentId) { showFindStep(); return; }
+    var errEl = document.getElementById('auth-err');
+    if (errEl) errEl.style.display = 'none';
     var s = prefill || document.getElementById('secret-input').value.trim();
     if (!s) return;
     verifySecretCall(s, !prefill);
   }
 
   async function verifySecretCall(secret, fromInput) {
+    if (!_agentId) { showFindStep(); return; }
     var r = await fetch('/api/agent/verify-secret', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ agentId: _agentId, secret })
@@ -444,7 +652,7 @@
     } else if (fromInput) {
       var err = document.getElementById('auth-err');
       err.style.display = 'block';
-      err.textContent = document.body.classList.contains('en-mode') ? 'Incorrect password' : '密码错误';
+      err.textContent = document.body.classList.contains('en-mode') ? '❌ Incorrect password' : '❌ 密码错误';
     }
   }
 

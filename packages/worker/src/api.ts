@@ -92,19 +92,26 @@ app.post('/api/oauth/start', async (c) => {
   try { reqBody = await c.req.json(); } catch {}
   const reqOrigin = c.env.LOCAL_ORIGIN || reqBody.currentOrigin || new URL(c.req.url).origin;
 
+  // agentFlow=true: wizard mode — needs offline.access to get refresh_token for the agent.
+  // Default (dashboard login): read-only scope, uses auth-only client ID.
+  const isAgentFlow = !!reqBody.agentFlow;
+
   const redirectUri = reqOrigin + '/callback';
-  // Use the dedicated Auth App for dashboard login to avoid rotating the agent's refresh grant
-  const authClientId = c.env.X_AUTH_CLIENT_ID || c.env.X_CLIENT_ID;
+  const clientId = isAgentFlow ? c.env.X_CLIENT_ID : (c.env.X_AUTH_CLIENT_ID || c.env.X_CLIENT_ID);
+  const scope = isAgentFlow
+    ? 'tweet.read tweet.write users.read offline.access'
+    : 'tweet.read users.read'; // no offline.access for dashboard login — identity verify only
+
   const authUrl = new URL('https://twitter.com/i/oauth2/authorize');
   authUrl.searchParams.set('response_type', 'code');
-  authUrl.searchParams.set('client_id', authClientId);
+  authUrl.searchParams.set('client_id', clientId);
   authUrl.searchParams.set('redirect_uri', redirectUri);
-  authUrl.searchParams.set('scope', 'tweet.read users.read'); // no offline.access — identity verify only
+  authUrl.searchParams.set('scope', scope);
   authUrl.searchParams.set('state', state);
   authUrl.searchParams.set('code_challenge', codeChallenge);
   authUrl.searchParams.set('code_challenge_method', 'S256');
 
-  const sessionData = { state, codeVerifier, redirectUri, status: 'pending', clientId: authClientId };
+  const sessionData = { state, codeVerifier, redirectUri, status: 'pending', clientId };
   await c.env.AGENT_STATE.put('oauth:' + sessionId, JSON.stringify(sessionData), { expirationTtl: 600 });
   await c.env.AGENT_STATE.put('oauth_state:' + state, sessionId, { expirationTtl: 600 });
 
@@ -201,7 +208,11 @@ try {
   // Dashboard login: postMessage the accessToken back to opener window, then close
   // Use the stored redirectUri origin as targetOrigin to prevent token interception (#12)
   const targetOrigin = session.redirectUri ? new URL(session.redirectUri).origin : '*';
-  const loginReturnUrl = session.redirectUri ? session.redirectUri.replace('/callback', '/dashboard') + '?id=' + '&_oauthDone=login' : '';
+  // Mobile fallback: redirect back to dashboard; include sessionId so it can resume polling.
+  // Note: agentId is NOT in the session for login flow (user finds their agent on dashboard).
+  // The dashboard reads agentId from its own URL or sessionStorage.
+  const dashboardBase = session.redirectUri ? session.redirectUri.replace('/callback', '/dashboard') : '';
+  const loginReturnUrl = dashboardBase ? (dashboardBase + '?_oauthDone=login&_sessionId=' + encodeURIComponent(sessionId)) : '';
   const accessTokenJson = JSON.stringify(data.access_token);
   const targetOriginJson = JSON.stringify(targetOrigin);
   const loginReturnUrlJson = JSON.stringify(loginReturnUrl);
@@ -306,7 +317,7 @@ app.post('/api/agent/verify-secret', async (c) => {
   await c.env.AGENT_STATE.delete(failKey);
   // Issue session token (#1)
   const sessionToken = await issueSession(c.env, agentId);
-  return c.json({ ok: true, sessionToken });-preview
+  return c.json({ ok: true, sessionToken });
 });
 
 // Logout — invalidate session token
@@ -320,7 +331,7 @@ app.post('/api/me', async (c) => {
   try {
     const { accessToken } = await c.req.json() as any;
     const res = await fetch('https://api.twitter.com/2/users/me', { headers: { Authorization: `Bearer ${accessToken}` } });
-    const data = await res.json() as any;-preview
+    const data = await res.json() as any;
     if (!res.ok) throw new Error(data.detail || 'Failed to fetch user');
     return c.json(data.data);
   } catch (err) { return c.json({ error: String(err) }, 400); }

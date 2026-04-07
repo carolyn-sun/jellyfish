@@ -570,7 +570,7 @@ import Layout from "../layouts/Layout.astro";
     </div>
   </div>
 
-  <script>
+  <script is:inline>
     // @ts-nocheck
     // Logic identical to wizard.html but wrapped in modern JS scoped.
     const api = async (endpoint, payload) => {
@@ -824,6 +824,7 @@ import Layout from "../layouts/Layout.astro";
       clearErr("err1");
       const r = await api("/api/oauth/start", {
         currentOrigin: window.location.origin,
+        agentFlow: true, // wizard mode — needs offline.access to get refresh_token
       });
       if (r.error) {
         showErr("err1", r.error);

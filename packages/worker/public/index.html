@@ -8,7 +8,493 @@ Agent 的<span class="lang-zh">核心身份信息已与你的授权 X 账号强�
         persona strings will save you tremendous Tokens!</span> </p> <button class="btn btn-primary w-full mt-4" id="startDistillBtn"><span class="lang-zh">🚀 开始一键蒸馏</span><span class="lang-en">🚀 Start Distillation</span></button> <div id="distillLoading" style="display:none" class="mt-4"> <div class="dot-pulse"></div><span><span class="lang-zh">正在疯狂蒸馏中（约需 10-30 秒）……</span><span class="lang-en">Distilling (takes 10-30s)...</span></span> </div> <div id="distillRes" class="alert alert-success mt-4"></div> <label><span class="lang-zh">人格配置输出 (System Prompt)</span><span class="lang-en">System Prompt Output</span></label> <textarea id="skillText" rows="12" style="resize:vertical" data-ph-zh="蒸馏出的 persona_skill 会显示在这里，你可自由微调补充。可以跳过蒸馏，自己手写！" data-ph-en="Distilled persona_skill will show here, you can handwrite or edit it!" placeholder="蒸馏出的 persona_skill 会显示在这里，你可自由微调补充。可以跳过蒸馏，自己手写！"></textarea> <div id="err3" class="alert alert-error"></div> <div class="section-title mt-8"> <span class="lang-zh">🎲 验证模型效果</span><span class="lang-en">🎲 Verify Model Output</span> </div> <div class="subtitle" style="margin-bottom:8px"> <span class="lang-zh">生成演练样本以调优 Agent
         的发言。如果不满意，可修改上方的系统提示词后重新生成。</span><span class="lang-en">Generate practice samples to test current persona. Modify prompt above
         if unsatisfied.</span> </div> <button class="btn btn-ghost w-full" id="genSampleBtn"><span class="lang-zh">🎲 生成测试样本</span><span class="lang-en">🎲 Generate Test Samples</span></button> <div id="sampleLoading" style="display:none" class="mt-4"> <div class="dot-pulse"></div><span><span class="lang-zh">正在思考……</span><span class="lang-en">Thinking...</span></span> </div> <div id="sampleRes" class="sample-box"></div> <div class="flex justify-between mt-8"> <button class="btn btn-ghost btn-back" data-step="2"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button> <button class="btn btn-primary btn-next" id="s3next" data-step="4"><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span></button> </div> </div>  <div class="step-panel" id="s4"> <h2> <span class="lang-zh">⚖️ 经济与参数</span><span class="lang-en">⚖️ Parameters & Economy</span> </h2> <div class="subtitle"> <span class="lang-zh">调整回复概率与点赞概率。</span><span class="lang-en">Adjust reply and like probability.</span> </div> <label><span class="lang-zh">回复概率 (0~1)</span><span class="lang-en">Reply Probability (0~1)</span></label> <input type="number" id="replyPct" step="0.1" value="0.2"> <label><span class="lang-zh">点赞概率 (0~1)</span><span class="lang-en">Like Probability (0~1)</span></label> <input type="number" id="likePct" step="0.1" value="0.8"> <div class="flex justify-between mt-8"> <button class="btn btn-ghost btn-back" data-step="3"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button> <button class="btn btn-primary btn-next" data-step="5"><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span></button> </div> </div>  <div class="step-panel" id="s5"> <h2> <span class="lang-zh">🧠 记忆控制</span><span class="lang-en">🧠 Memory Control</span> </h2> <div class="subtitle"> <span class="lang-zh">控制 Agent 会记忆并回应哪些人的互动。</span><span class="lang-en">Control whose interactions the Agent remembers.</span> </div> <label><span class="lang-zh">白名单模式</span><span class="lang-en">Whitelist Mode</span></label> <select id="memMode"> <option value="specific" data-text-zh="特定用户（仅白名单用户）" data-text-en="Specific Users (Whitelist only)">特定用户（仅白名单用户）</option> <option value="all" data-text-zh="所有人（任何人互动均可触发记忆）" data-text-en="Everyone (Any interaction triggers memory)">所有人（任何人互动均可触发记忆）</option> </select> <div id="memUsersContainer" class="mt-4"> <label><span class="lang-zh">白名单用户</span><span class="lang-en">VIP List</span></label> <input type="text" id="memUsers" placeholder="例：elonmusk, x"> </div> <div class="flex justify-between mt-8"> <button class="btn btn-ghost btn-back" data-step="4"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button> <button class="btn btn-primary btn-next" data-step="6"><span class="lang-zh">下一步 →</span><span class="lang-en">Next →</span></button> </div> </div>  <div class="step-panel" id="s6"> <h2> <span class="lang-zh">🚀 部署配置</span><span class="lang-en">🚀 Deploy Config</span> </h2> <div class="subtitle"> <span class="lang-zh">最后确认并保存你的 Agent 以激活生命流。</span><span class="lang-en">Final confirmation to save your Agent and activate its life stream.</span> </div> <div class="summary-box"> <div id="summaryContent"></div> </div> <div class="mt-4" style="background:var(--input-bg);padding:16px;border:1px solid var(--input-border);border-radius:12px"> <label style="margin-top:0"><span class="lang-zh">控制台密码 (选填)</span><span class="lang-en">Dashboard Secret (Optional)</span></label> <input type="password" id="dashboardSecret" placeholder="Set a password to login without X OAuth"> <span style="font-size:12px;color:var(--text-muted);display:block;margin-top:6px"> <span class="lang-zh">不填则只能使用 Agent 的 Twitter 账号授权登录 Dashboard。</span> <span class="lang-en">If empty, you can only log in the Dashboard using the Agent's Twitter
-          account.</span> </span> </div> <button class="btn btn-primary w-full mt-8" id="finishBtn" style="font-size: 1.2rem; padding: 16px;"><span class="lang-zh">🪛 投放水母</span><span class="lang-en">🪛 Deploy Jellyfish</span></button> <div id="deployRes" class="alert mt-4"></div> <div class="flex justify-between mt-8"> <button class="btn btn-ghost btn-back" data-step="5"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button> <span></span> </div> </div> <script type="module" src="/_astro/index.astro_astro_type_script_index_0_lang.CI-UNgnv.js"></script>  </main> </div> <script>
+          account.</span> </span> </div> <button class="btn btn-primary w-full mt-8" id="finishBtn" style="font-size: 1.2rem; padding: 16px;"><span class="lang-zh">🪛 投放水母</span><span class="lang-en">🪛 Deploy Jellyfish</span></button> <div id="deployRes" class="alert mt-4"></div> <div class="flex justify-between mt-8"> <button class="btn btn-ghost btn-back" data-step="5"><span class="lang-zh">← 返回</span><span class="lang-en">← Back</span></button> <span></span> </div> </div> <script>
+    // @ts-nocheck
+    // Logic identical to wizard.html but wrapped in modern JS scoped.
+    const api = async (endpoint, payload) => {
+      const method = payload ? "POST" : "GET";
+      const r = await fetch(endpoint, {
+        method,
+        headers: payload ? { "Content-Type": "application/json" } : undefined,
+        body: payload ? JSON.stringify(payload) : undefined,
+      });
+      return r.json();
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    const S = {
+      step: 0,
+      mode: "create",
+      geminiKey: "",
+      geminiModel: "gemini-3.1-pro-preview",
+      accessToken: "",
+      refreshToken: "",
+      agentName: "",
+      agentHandle: "",
+      sourceAccounts: [],
+      skill: "",
+      vipList: [],
+      memMode: "specific",
+      memUsers: [],
+      replyPct: 0.2,
+      likePct: 0.8,
+      cooldown: 3,
+      enableEvo: true,
+    };
+
+    const STEPS_CREATE = [
+      '<span class="lang-zh">授权</span><span class="lang-en">Auth</span>',
+      '<span class="lang-zh">身份</span><span class="lang-en">Identity</span>',
+      '<span class="lang-zh">蒸馏</span><span class="lang-en">Distill</span>',
+      '<span class="lang-zh">经济</span><span class="lang-en">Economy</span>',
+      '<span class="lang-zh">记忆</span><span class="lang-en">Memory</span>',
+      '<span class="lang-zh">部署</span><span class="lang-en">Deploy</span>',
+    ];
+    const STEPS_DISTILL = [
+      '<span class="lang-zh">授权</span><span class="lang-en">Auth</span>',
+      '<span class="lang-zh">蒸馏</span><span class="lang-en">Distill</span>',
+    ];
+
+    function buildNav() {
+      if (S.step === 0) {
+        $("stepNav").innerHTML = "";
+        return;
+      }
+      const STEPS = S.mode === "distill" ? STEPS_DISTILL : STEPS_CREATE;
+      const nav = $("stepNav");
+      nav.innerHTML = "";
+
+      const dotIndex =
+        S.mode === "distill" ? (S.step === 3 ? 1 : 0) : S.step - 1;
+
+      STEPS.forEach((lbl, i) => {
+        const div = document.createElement("div");
+        const isDone = i < dotIndex;
+        const isActive = i === dotIndex;
+        const num = i + 1;
+        div.className =
+          "step-dot" + (isDone ? " done" : isActive ? " active" : "");
+        div.innerHTML = `<div class="num">${isDone ? "✓" : num}</div><div class="lbl">${lbl}</div>`;
+        nav.appendChild(div);
+      });
+    }
+
+    function showErr(id, msg) {
+      const el = $(id);
+      if (!el) return;
+      el.innerHTML = msg;
+      el.className = "alert alert-error show";
+    }
+    function clearErr(id) {
+      const el = $(id);
+      if (el) el.className = "alert alert-error";
+    }
+
+    async function go(n) {
+      clearErr("err" + S.step);
+      if (n > S.step && !validate(S.step)) return;
+      if (S.mode === "distill" && n > 3) return; // Prevent forward nav in distill mode
+
+      if (S.mode === "distill") {
+        if (n === 2) {
+          if (S.step === 1)
+            n = 3; // Forward skip s2
+          else if (S.step === 3) n = 1; // Backward skip s2
+        }
+      }
+
+      if (n === 3) {
+        if (S.mode === "distill")
+          $("s3next") ? ($("s3next").style.display = "none") : null;
+      }
+
+      document
+        .querySelectorAll(".step-panel")
+        .forEach((p) => p.classList.remove("active"));
+      $("s" + n).classList.add("active");
+      S.step = n;
+      buildNav();
+
+      if (n === 8) renderSummary();
+    }
+
+    function validate(step) {
+      if (S.mode === "distill" && step >= 3) return true; // safety
+      if (step === 1 && !S.refreshToken) {
+        showErr(
+          "err1",
+          '<span class="lang-zh">请先完成授权或填入 Refresh Token</span><span class="lang-en">Please complete Auth or input Refresh Token</span>',
+        );
+        return false;
+      }
+
+      if (step === 3 && !$("skillText").value.trim()) {
+        showErr(
+          "err3",
+          '<span class="lang-zh">请等待蒸馏完成或手动填入人格配置</span><span class="lang-en">Wait for distillation or enter persona</span>',
+        );
+        return false;
+      }
+
+      // collect
+      if (step === 2) {
+        S.agentName = $("agentName").value.trim();
+        S.agentHandle = $("agentHandle").value.trim();
+      }
+      if (step === 3) {
+        S.sourceAccounts = $("sourceAccounts")
+          .value.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        S.skill = $("skillText").value.trim();
+      }
+      if (step === 4) {
+        S.replyPct = parseFloat($("replyPct").value);
+        S.likePct = parseFloat($("likePct").value);
+        S.cooldown = 3; // fixed default
+        S.enableEvo = true; // always on
+      }
+      if (step === 5) {
+        S.memMode = $("memMode").value;
+        S.memUsers = $("memUsers")
+          .value.split(",")
+          .map((s) => s.trim().replace("@", ""))
+          .filter(Boolean);
+      }
+      return true;
+    }
+
+    $("modeCreateBtn").addEventListener("click", () => {
+      S.mode = "create";
+      go(1);
+    });
+    $("modeDistillBtn").addEventListener("click", () => {
+      S.mode = "distill";
+      go(1);
+    });
+
+    $("gotoDashboardBtn").addEventListener("click", async () => {
+      const handle = ($("dashboardHandle").value || "")
+        .trim()
+        .replace(/^@/, "");
+      const isEn = document.body.classList.contains("en-mode");
+      const errEl = $("dashboardErr");
+      if (!handle) {
+        $("dashErrZh") && ($("dashErrZh").textContent = "请输入 X 账号名");
+        $("dashErrEn") &&
+          ($("dashErrEn").textContent = "Please enter an X username");
+        errEl.style.display = "block";
+        return;
+      }
+      errEl.style.display = "none";
+      const btn = $("gotoDashboardBtn");
+      btn.disabled = true;
+      btn.innerHTML = isEn ? "⏳ Looking up..." : "⏳ 查找中...";
+      try {
+        const res = await api(
+          "/api/agent/find-by-handle?handle=" + encodeURIComponent(handle),
+        );
+        if (res.agentId) {
+          window.location.href =
+            "/dashboard?id=" + encodeURIComponent(res.agentId);
+        } else {
+          $("dashErrZh") &&
+            ($("dashErrZh").textContent =
+              "未找到 @" + handle + " 对应的 Agent，请先完成部署");
+          $("dashErrEn") &&
+            ($("dashErrEn").textContent =
+              "No Agent found for @" + handle + ". Please deploy first.");
+          errEl.style.display = "block";
+        }
+      } catch (e) {
+        $("dashErrZh") &&
+          ($("dashErrZh").textContent = "查找失败: " + e.message);
+        $("dashErrEn") &&
+          ($("dashErrEn").textContent = "Lookup failed: " + e.message);
+        errEl.style.display = "block";
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = isEn ? "🚀 Enter" : "🚀 进入";
+      }
+    });
+    $("dashboardHandle").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") $("gotoDashboardBtn").click();
+    });
+
+    // Attach generic navigation listeners
+    document.querySelectorAll(".btn-next, .btn-back").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const step = parseInt(e.currentTarget.dataset.step);
+        if (!isNaN(step)) go(step);
+      });
+    });
+
+    $("s1next").addEventListener("click", () => go(3));
+
+    // Init
+    $("cbHint").textContent = window.location.origin + "/callback";
+    buildNav();
+
+    document.addEventListener("lang-changed", function () {
+      const isEn = document.body.classList.contains("en-mode");
+      document
+        .querySelectorAll("input[data-ph-zh], textarea[data-ph-zh]")
+        .forEach((el) => {
+          el.placeholder = isEn
+            ? el.getAttribute("data-ph-en")
+            : el.getAttribute("data-ph-zh");
+        });
+      document
+        .querySelectorAll("option[data-text-zh], span[data-text-zh]")
+        .forEach((el) => {
+          el.textContent = isEn
+            ? el.getAttribute("data-text-en")
+            : el.getAttribute("data-text-zh");
+        });
+    });
+    document.dispatchEvent(new Event("lang-changed"));
+
+    // --- API Calls ---
+    let oauthPollTimer = null;
+    $("oauthBtn").addEventListener("click", async () => {
+      $("oauthBtn").disabled = true;
+      clearErr("err1");
+      const r = await api("/api/oauth/start", {
+        currentOrigin: window.location.origin,
+        agentFlow: true, // wizard mode — needs offline.access to get refresh_token
+      });
+      if (r.error) {
+        showErr("err1", r.error);
+        $("oauthBtn").disabled = false;
+        return;
+      }
+
+      const authWin = window.open(r.authUrl, "_blank");
+      $("oauthStatus").style.display = "flex";
+
+      let checkClosedTimer = setInterval(() => {
+        if (authWin && authWin.closed) {
+          clearInterval(checkClosedTimer);
+          clearInterval(oauthPollTimer);
+          if ($("oauthDone").style.display !== "block") {
+            showErr(
+              "err1",
+              "⚠️ 授权窗口已被关闭。如果不小心关掉的，可以点击上面重试。",
+            );
+            $("oauthBtn").disabled = false;
+            $("oauthStatus").style.display = "none";
+          }
+        }
+      }, 1000);
+
+      oauthPollTimer = setInterval(async () => {
+        const res = await api(
+          "/api/oauth/result?sessionId=" + encodeURIComponent(r.sessionId),
+        );
+        if (res.status === "done") {
+          clearInterval(oauthPollTimer);
+          clearInterval(checkClosedTimer);
+          S.accessToken = res.accessToken;
+          S.refreshToken = res.refreshToken;
+          $("oauthStatus").style.display = "none";
+          $("oauthDone").style.display = "block";
+          fetchIdentityHint();
+          $("s1next").disabled = false;
+        } else if (res.status === "error") {
+          clearInterval(oauthPollTimer);
+          clearInterval(checkClosedTimer);
+          showErr("err1", res.error ?? "OAuth failed");
+          $("oauthBtn").disabled = false;
+          $("oauthStatus").style.display = "none";
+        }
+      }, 1500);
+    });
+
+    $("useManualBtn").addEventListener("click", async () => {
+      const rt = $("manualRefresh").value.trim();
+      if (!rt) {
+        showErr("err1", "请填入 Refresh Token");
+        return;
+      }
+      const r = await api("/api/oauth/refresh", { refreshToken: rt });
+      if (r.error) {
+        showErr("err1", "Token 验证失败：" + r.error);
+        return;
+      }
+      S.refreshToken = rt;
+      S.accessToken = r.accessToken;
+      $("manualDone").style.display = "block";
+      fetchIdentityHint();
+      $("s1next").disabled = false;
+    });
+
+    async function fetchIdentityHint() {
+      const meRes = await api("/api/me", { accessToken: S.accessToken });
+      if (!meRes.error && meRes.name && meRes.username) {
+        if (!$("agentName").value) $("agentName").value = meRes.name;
+        if (!$("agentHandle").value) $("agentHandle").value = meRes.username;
+        $("hintMyName").textContent = meRes.name;
+        $("hintMyHandle").textContent = meRes.username;
+        // Always keep S in sync — validate(2) is skipped when wizard goes s1→s3
+        S.agentName = meRes.name;
+        S.agentHandle = meRes.username;
+      }
+    }
+
+    // skip models UI fetcher logic as element was deleted
+
+    // Distill
+    $("startDistillBtn").addEventListener("click", async () => {
+      if (!$("sourceAccounts").value.trim()) {
+        showErr(
+          "err3",
+          document.body.classList.contains("en-mode")
+            ? "Please enter at least one source account"
+            : "请输入至少一个源账号",
+        );
+        return;
+      }
+      $("distillLoading").style.display = "flex";
+      $("startDistillBtn").disabled = true;
+      clearErr("err3");
+      const payload = {
+        sourceAccounts: $("sourceAccounts")
+          .value.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        accessToken: S.accessToken,
+        promptLang: document.querySelector('input[name="pLang"]:checked').value,
+      };
+      const r = await api("/api/distill", payload);
+      $("distillLoading").style.display = "none";
+      $("startDistillBtn").disabled = false;
+      if (r.error) {
+        showErr("err3", r.error);
+        return;
+      }
+
+      let dHtml = "";
+      if (r.fetched) {
+        for (const [k, v] of Object.entries(r.fetched)) {
+          dHtml += `@${k}: <span class="lang-zh">抓取了</span><span class="lang-en">fetched</span> ${v} <span class="lang-zh">条推文</span><span class="lang-en">tweets</span><br>`;
+        }
+      }
+      const el = $("distillRes");
+      el.innerHTML =
+        dHtml +
+        '<br><b><span class="lang-zh">✅ 蒸馏成功！</span><span class="lang-en">✅ Distillation Successful!</span></b>';
+      el.className = "alert alert-success show";
+      $("skillText").value = r.skill;
+    });
+
+    // Tune
+    $("genSampleBtn").addEventListener("click", async () => {
+      $("sampleLoading").style.display = "flex";
+      $("genSampleBtn").disabled = true;
+      const payload = { skill: $("skillText").value };
+      const r = await api("/api/tune/sample", payload);
+      $("sampleLoading").style.display = "none";
+      $("genSampleBtn").disabled = false;
+
+      if (r.error) {
+        $("sampleRes").innerHTML =
+          `<div style="color:var(--error)">❌ ${r.error}</div>`;
+        return;
+      }
+      const isSkip = (t) => t && t.trim().toLowerCase() === "<skip>";
+      const renderContent = (t) =>
+        isSkip(t)
+          ? `<span style="display:inline-block;padding:2px 10px;border-radius:6px;background:rgba(255,255,255,0.06);color:var(--text-muted);font-size:0.85rem;letter-spacing:0.05em;">🚫 <span class="lang-zh">已读不回</span><span class="lang-en">Skip</span></span>`
+          : t;
+      let h = "";
+      if (r.tweet) {
+        h += `<div style="margin-top:16px;background:var(--input-bg);padding:12px;border-radius:12px;">`;
+        h += `<div style="font-size:12px;color:var(--primary)"><span class="lang-zh">✏️ 自发推文</span><span class="lang-en">✏️ Spontaneous Tweet</span></div><div style="margin-top:8px">${renderContent(r.tweet)}</div>`;
+        h += `</div>`;
+      }
+      if (r.reply) {
+        h += `<div style="margin-top:16px;background:var(--input-bg);padding:12px;border-radius:12px;">`;
+        h += `<div style="font-size:12px;color:var(--primary)"><span class="lang-zh">💬 互动回复</span><span class="lang-en">💬 Interactive Reply</span></div><div style="font-size:13px;color:var(--text-muted)">Context: [@stranger] 说了: 这你们华人都是一个怎么想的？</div><div style="margin-top:8px">${renderContent(r.reply)}</div>`;
+        h += `</div>`;
+      }
+      $("sampleRes").innerHTML = h;
+    });
+
+    // Memory UI Bind
+    $("memMode").addEventListener("change", () => {
+      $("memUsersContainer").style.display =
+        $("memMode").value === "all" ? "none" : "block";
+    });
+
+    // Deploy
+    function renderSummary() {
+      const html = `
+    <li><strong><span class="lang-zh">授权账号</span><span class="lang-en">Auth Account</span>:</strong> @${S.agentHandle}</li>
+    <p style="margin-top:24px;font-size:14px;color:var(--text-muted)">
+      <span class="lang-zh">Gemini 模型配置将通过平台环境变量读取。</span><span class="lang-en">Gemini Model Config is now mapped to ENV context.</span>
+    </p>
+    <li><strong><span class="lang-zh">记忆模式</span><span class="lang-en">Memory Mode</span>:</strong> ${S.memMode === "all" ? '<span class="lang-zh">监听全网</span><span class="lang-en">Listen to All</span>' : '<span class="lang-zh">特定白名单</span><span class="lang-en">Whitelist</span> (' + S.memUsers.length + "人)"}</li>
+    <li><strong><span class="lang-zh">互动概率</span><span class="lang-en">Interaction Pct</span>:</strong> <span class="lang-zh">点赞</span><span class="lang-en">Like</span> ${S.likePct * 100}% | <span class="lang-zh">回复</span><span class="lang-en">Reply</span> ${S.replyPct * 100}%</li>
+  `;
+      $("summaryContent").innerHTML =
+        `<ul style="color:var(--text-muted);font-size:1rem;line-height:2;">${html}</ul>`;
+    }
+
+    $("finishBtn").addEventListener("click", async () => {
+      $("finishBtn").disabled = true;
+      $("finishBtn").textContent = "部署配置中...";
+
+      S.dashboardSecret = $("dashboardSecret")?.value || "";
+
+      const payload = {
+        config: {
+          agentName: S.agentName,
+          agentHandle: S.agentHandle,
+          sourceAccounts: S.sourceAccounts,
+          geminiModel: S.geminiModel,
+          defaultReplyProbability: S.replyPct,
+          defaultLikeProbability: S.likePct,
+          spontaneousCooldownDays: S.cooldown,
+          enableNightlyEvolution: S.enableEvo,
+          vipList: S.vipList,
+          memoryWhitelist: S.memMode === "all" ? "all" : S.memUsers,
+        },
+        skill: S.skill,
+        refreshToken: S.refreshToken,
+        dashboardSecret: S.dashboardSecret,
+      };
+      const r = await api("/api/agent/create", payload);
+      if (r.error) {
+        const el = $("deployRes");
+        el.textContent = "部署失败: " + r.error;
+        el.className = "alert alert-error show";
+        $("finishBtn").disabled = false;
+        $("finishBtn").textContent = "重试部署";
+        return;
+      }
+
+      const isZh = !document.body.classList.contains("en-mode");
+      $("deployRes").innerHTML = isZh
+        ? `🎉 <b>Agent 部署成功！</b><br><br>你的 Agent 已储存并开始自动巡逻。`
+        : `🎉 <b>Agent Deployed Successfully!</b><br><br>Your Agent is active and patrolling.`;
+      $("deployRes").className = "alert alert-success show";
+
+      // Render button separately so it's not inside the alert (avoids style corruption)
+      const btnWrap = document.createElement("div");
+      btnWrap.style.cssText = "margin-top:16px;";
+      const btn = document.createElement("a");
+      btn.href = `/dashboard?id=${r.agentId}`;
+      btn.className = "btn btn-primary";
+      btn.style.cssText =
+        "display:inline-flex;align-items:center;justify-content:center;text-decoration:none;";
+      btn.textContent = isZh ? "进入控制台" : "Enter Dashboard";
+      btnWrap.appendChild(btn);
+      $("deployRes").after(btnWrap);
+
+      $("finishBtn").style.display = "none";
+    });
+  </script>  </main> </div> <script>
       (function() {
         var saved = localStorage.getItem('agentSettingsLang');
         var btn = document.getElementById('glLangToggle');
