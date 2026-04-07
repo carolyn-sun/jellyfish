@@ -175,6 +175,10 @@
         <div id="pro-key-status" style="font-size:.78rem;margin-top:6px">
           <span style="color:var(--text-muted)">🔒 <span class="lang-zh">加载中…</span><span class="lang-en">Loading…</span></span>
         </div>
+        <div style="margin-top:14px">
+          <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
+          <script type='text/javascript'>kofiwidget2.init('Support me on Ko-fi', '#6d28d9', 'K3K51XDNXI');kofiwidget2.draw();</script>
+        </div>
       </div>
     </div>
     <hr style="border:none;border-top:1px solid rgba(139,92,246,0.12);margin:0 0 14px">
@@ -452,12 +456,13 @@
       // Fill pro status
       var proExp = _agentData.pro_expires_at || 0;
       var proSt = document.getElementById('pro-key-status');
+      var kofiLink = ' · <a href="https://ko-fi.com/HomeCollider" target="_blank" style="color:#a78bfa;font-size:.82rem"><span class="lang-zh">☕ Ko-Fi 支持</span><span class="lang-en">☕ Support on Ko-Fi</span></a>';
       if (proExp > Date.now()) {
         sessionStorage.setItem('pro_expires_at', String(proExp));
-        proSt.innerHTML = '<span style="color:#86efac">✅ Pro 已激活，有效至 <b>' + (function(ts) { var d = new Date(ts); return (!ts || ts <= 0 || isNaN(d.getTime()) || ts > 3e12) ? '<span class="lang-zh">永远</span><span class="lang-en">Forever</span>' : d.toLocaleDateString('zh-CN'); })(proExp) + '</b></span>';
+        proSt.innerHTML = '<span style="color:#86efac">✅ Pro 已激活，有效至 <b>' + (function(ts) { var d = new Date(ts); return (!ts || ts <= 0 || isNaN(d.getTime()) || ts > 3e12) ? '<span class="lang-zh">永远</span><span class="lang-en">Forever</span>' : d.toLocaleDateString('zh-CN'); })(proExp) + '</b></span>' + kofiLink;
       } else {
         sessionStorage.removeItem('pro_expires_at');
-        proSt.innerHTML = '<span style="color:var(--text-muted)">🔒 <span class="lang-zh">未激活 · <a href="https://ko-fi.com/HomeCollider" target="_blank" style="color:#a78bfa">Ko-Fi 购买授权</a></span><span class="lang-en">Not activated · <a href="https://ko-fi.com/HomeCollider" target="_blank" style="color:#a78bfa">Buy on Ko-Fi</a></span></span>';
+        proSt.innerHTML = '<span style="color:var(--text-muted)">🔒 <span class="lang-zh">未激活</span><span class="lang-en">Not activated</span></span>' + kofiLink;
       }
 
       // Fill VIP list
