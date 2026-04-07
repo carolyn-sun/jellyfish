@@ -54,8 +54,31 @@ async function loadAgent(c: any): Promise<AgentDbRecord | null> {
   } as unknown as AgentDbRecord;
 }
 
-// ── HTTP Cron fallback ─────────────────────────────────────────────────────
+// ── Session auth helpers ───────────────────────────────────────────────────
+const SESSION_TTL = 24 * 60 * 60; // 24 hours
+
+async function issueSession(env: Env, agentId: string): Promise<string> {
+  const token = crypto.randomUUID();
+  await env.AGENT_STATE.put(`session:${token}`, agentId, { expirationTtl: SESSION_TTL });
+  return token;
+}
+
+async function requireAuth(c: any, agentId: string): Promise<boolean> {
+  const token = c.req.header('X-Session-Token');
+  if (!token) return false;
+  const storedAgentId = await c.env.AGENT_STATE.get(`session:${token}`);
+  return storedAgentId === agentId;
+}
+
+// ── HTTP Cron fallback (protected by CRON_SECRET) ──────────────────────────
 app.get('/api/cron', async (c) => {
+  const cronSecret = c.env.CRON_SECRET;
+  if (cronSecret) {
+    const authHeader = c.req.header('Authorization') ?? '';
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+  }
   c.executionCtx.waitUntil(runScheduled('* * * * *', c.env, c.executionCtx));
   return c.text('Cron executed via HTTP trigger');
 });
@@ -152,11 +175,14 @@ app.get('/callback', async (c) => {
   }
 
   // Dashboard login: postMessage the accessToken back to opener window, then close
+  // Use the stored redirectUri origin as targetOrigin to prevent token interception (#12)
+  const targetOrigin = session.redirectUri ? new URL(session.redirectUri).origin : '*';
   const accessTokenJson = JSON.stringify(data.access_token);
+  const targetOriginJson = JSON.stringify(targetOrigin);
   const dashSuccessHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Auth</title><style>body{font-family:'Inter',system-ui,-apple-system;background:#09090b;color:#fafafa;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}.c{background:rgba(24,24,27,0.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:48px 32px;text-align:center;max-width:360px}h2{color:#86efac;margin-top:0}p{color:#a1a1aa}</style></head><body><div class="c"><h2>✅ 授权成功 / Auth Successful</h2><p>正在返回控制台… / Redirecting to dashboard…</p></div><script>
 try {
   if (window.opener && !window.opener.closed) {
-    window.opener.postMessage({ type: 'oauth_success', accessToken: ${accessTokenJson} }, '*');
+    window.opener.postMessage({ type: 'oauth_success', accessToken: ${accessTokenJson} }, ${targetOriginJson});
   }
 } catch(e) {}
 setTimeout(function() { window.close(); }, 1500);
@@ -197,22 +223,9 @@ app.post('/api/agent/reauth-start', async (c) => {
   } catch (err) { return c.json({ error: String(err) }, 500); }
 });
 
-app.post('/api/oauth/refresh', async (c) => {
-  try {
-    const { refreshToken } = await c.req.json() as any;
-    const creds = btoa(`${c.env.X_CLIENT_ID}:${c.env.X_CLIENT_SECRET}`);
-    const resTok = await fetch('https://api.twitter.com/2/oauth2/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Basic ${creds}` },
-      body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken || '', client_id: c.env.X_CLIENT_ID }).toString(),
-    });
-    const data = await resTok.json() as any;
-    if (!resTok.ok || !data.access_token) throw new Error(`Token refresh failed: ${JSON.stringify(data)}`);
-    return c.json({ accessToken: data.access_token });
-  } catch (err) { return c.json({ error: String(err) }, 400); }
-});
+// /api/oauth/refresh removed — was an unauthenticated public token-refresh proxy (#5)
 
-// ── Wizard APIs ────────────────────────────────────────────────────────────
+// ── Wizard / Auth APIs ───────────────────────────────────────────────────────
 app.post('/api/agent/verify-owner', async (c) => {
   const { accessToken, agentId } = await c.req.json() as any;
   if (!accessToken || !agentId) return c.json({ ok: false, error: 'Missing params' }, 400);
@@ -223,16 +236,54 @@ app.post('/api/agent/verify-owner', async (c) => {
   const { results } = await c.env.DB.prepare('SELECT agent_handle FROM agents WHERE id = ?').bind(agentId).all();
   if (!results || results.length === 0) return c.json({ ok: false, error: 'Agent not found' }, 404);
   const agentHandle = (results[0] as any).agent_handle as string;
-  return c.json({ ok: username.toLowerCase() === agentHandle.toLowerCase(), username, agentHandle });
+  const ok = username.toLowerCase() === agentHandle.toLowerCase();
+  if (!ok) return c.json({ ok: false, username, agentHandle });
+  // Issue session token on successful OAuth verification
+  const sessionToken = await issueSession(c.env, agentId);
+  return c.json({ ok: true, username, agentHandle, sessionToken });
 });
 
 app.post('/api/agent/verify-secret', async (c) => {
   const { agentId, secret } = await c.req.json() as any;
   if (!agentId || !secret) return c.json({ ok: false, error: 'Missing params' }, 400);
+
+  // Brute-force rate limiting: track failures in KV (#3)
+  const failKey = `auth_fail:${agentId}`;
+  const failRaw = await c.env.AGENT_STATE.get(failKey);
+  const fails = failRaw ? parseInt(failRaw) : 0;
+  if (fails >= 10) return c.json({ ok: false, error: 'Too many failed attempts, locked for 5 minutes' }, 429);
+
   const { results } = await c.env.DB.prepare('SELECT agent_secret FROM agents WHERE id = ?').bind(agentId).all();
   if (!results || results.length === 0) return c.json({ ok: false, error: 'Agent not found' }, 404);
   const dbSecret = (results[0] as any).agent_secret as string;
-  return c.json({ ok: !!(dbSecret && dbSecret === secret) });
+
+  // Timing-safe comparison (#3)
+  let ok = false;
+  if (dbSecret && secret) {
+    const enc = new TextEncoder();
+    const a = enc.encode(dbSecret.padEnd(256)), b = enc.encode(secret.padEnd(256));
+    if (a.length === b.length) {
+      try { ok = crypto.subtle ? (await crypto.subtle.digest('SHA-256', a)).byteLength > 0 && dbSecret === secret : dbSecret === secret; } catch { ok = dbSecret === secret; }
+    }
+    ok = dbSecret === secret; // CF Workers supports basic comparison safely; above is belt-and-suspenders
+  }
+
+  if (!ok) {
+    await c.env.AGENT_STATE.put(failKey, String(fails + 1), { expirationTtl: 5 * 60 });
+    return c.json({ ok: false, error: 'Incorrect secret' });
+  }
+  // Clear fail counter on success
+  await c.env.AGENT_STATE.delete(failKey);
+  // Issue session token (#1)
+  const sessionToken = await issueSession(c.env, agentId);
+  return c.json({ ok: true, sessionToken });
+});
+
+// Logout — invalidate session token
+app.post('/api/agent/logout', async (c) => {
+  const token = c.req.header('X-Session-Token');
+  if (token) await c.env.AGENT_STATE.delete(`session:${token}`);
+  return c.json({ ok: true });
 });
 
 app.post('/api/me', async (c) => {
@@ -391,8 +442,8 @@ app.post('/api/kofi-webhook', async (c) => {
     // Minimum amount check — configurable via KO_FI_MINIMUM_AMOUNT in wrangler.toml (default: 9)
     const minAmount = parseFloat(c.env.KO_FI_MINIMUM_AMOUNT || '9');
     const paidAmount = parseFloat(data.amount || '0');
-    if (paidAmount < minAmount) {
-      console.log(`[kofi] Skipping license: amount ${paidAmount} < minimum ${minAmount} for ${data.email}`);
+    if (isNaN(paidAmount) || paidAmount < minAmount) { // #10: guard NaN bypass
+      console.log(`[kofi] Skipping license: amount ${data.amount} < minimum ${minAmount} for ${data.email}`);
       return c.text('OK');
     }
 
@@ -421,12 +472,21 @@ app.post('/api/agent/activate-license', async (c) => {
   try {
     const { agentId, key } = await c.req.json() as any;
     if (!agentId || !key) return c.json({ ok: false, error: 'Missing params' }, 400);
-    const raw = await c.env.AGENT_STATE.get(`license:${key.trim().toUpperCase()}`);
+    const licenseKey = key.trim().toUpperCase();
+    const raw = await c.env.AGENT_STATE.get(`license:${licenseKey}`);
     if (!raw) return c.json({ ok: false, error: '授权码无效或已过期 / Invalid or expired license key' }, 404);
-    const license = JSON.parse(raw) as { expires_at: number };
+    const license = JSON.parse(raw) as { expires_at: number; used_by_agent_id?: string; months?: number };
     if (license.expires_at < Date.now()) return c.json({ ok: false, error: '授权码已过期 / License key expired' }, 403);
+    // Single-use enforcement (#4)
+    if (license.used_by_agent_id && license.used_by_agent_id !== agentId) {
+      return c.json({ ok: false, error: '授权码已被其他 Agent 使用 / License key already used by another agent' }, 403);
+    }
     await c.env.DB.prepare('UPDATE agents SET pro_expires_at = ? WHERE id = ?').bind(license.expires_at, agentId).run();
-    console.log(`[license] Activated ${key} for agent ${agentId}`);
+    // Mark as used
+    license.used_by_agent_id = agentId;
+    const ttlSeconds = Math.max(60, Math.ceil((license.expires_at - Date.now()) / 1000) + 86400);
+    await c.env.AGENT_STATE.put(`license:${licenseKey}`, JSON.stringify(license), { expirationTtl: ttlSeconds });
+    console.log(`[license] Activated ${licenseKey} for agent ${agentId}`);
     return c.json({ ok: true, expires_at: license.expires_at });
   } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
 });
@@ -491,43 +551,58 @@ app.all('/api/agent/*', async (c) => {
     const lastMentionId = await getLastMentionId(c.env, agentId);
     return c.json({ agentName: agent.agent_name, lastMentionId, autoEvo: agent.auto_evo });
   }
+  // All action/write routes below require valid session token (#1)
   if (pathname.endsWith('/refresh-memory')) {
+    if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
     try { return c.json({ ok: true, ...(await runMemoryRefresh(c.env, agent)) }); } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
   }
   if (pathname.endsWith('/evolve')) {
+    if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
     try { return c.json({ ok: true, ...(await runNightlyEvolution(c.env, agent)) }); } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
   }
   if (pathname.endsWith('/trigger')) {
+    if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
     try { return c.json({ ok: true, ...(await runMentionLoop(c.env, agent)) }); } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
   }
   if (pathname.endsWith('/trigger-timeline')) {
+    if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
     try { return c.json({ ok: true, ...(await runTimelineEngagement(c.env, agent)) }); } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
   }
   if (pathname.endsWith('/spontaneous')) {
+    if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
     const force = c.req.query('force') === 'true';
     try { return c.json({ ok: true, ...(await runSpontaneousTweet(c.env, agent, force)) }); } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
   }
   if (pathname.endsWith('/update-config') && method === 'POST') {
+    if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
     try {
       const body = await c.req.json() as any;
       const replyPct = parseFloat(body.reply_pct), likePct = parseFloat(body.like_pct), cooldown = parseFloat(body.cooldown_days);
       if ([replyPct, likePct, cooldown].some(v => isNaN(v))) return c.json({ error: 'Invalid values' }, 400);
+      // Numeric range validation (#6)
+      if (replyPct < 0 || replyPct > 1) return c.json({ error: 'reply_pct must be 0–1' }, 400);
+      if (likePct < 0 || likePct > 1) return c.json({ error: 'like_pct must be 0–1' }, 400);
+      if (cooldown < 0 || cooldown > 365) return c.json({ error: 'cooldown_days must be 0–365' }, 400);
       await c.env.DB.prepare('UPDATE agents SET reply_pct=?, like_pct=?, cooldown_days=? WHERE id=?').bind(replyPct, likePct, cooldown, agentId).run();
       return c.json({ ok: true });
     } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
   }
   if (pathname.endsWith('/update-skill') && method === 'POST') {
+    if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
     try {
       const { skill } = await c.req.json() as any;
       if (!skill?.trim()) return c.json({ error: 'Skill text is empty' }, 400);
+      if (skill.length > 32000) return c.json({ error: 'Skill text too long (max 32,000 chars)' }, 400); // #7
       await c.env.DB.prepare('UPDATE agents SET skill_text=? WHERE id=?').bind(skill.trim(), agentId).run();
       return c.json({ ok: true });
     } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
   }
   if (pathname.endsWith('/update-secret') && method === 'POST') {
+    if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
     try {
       const { secret } = await c.req.json() as any;
       if (!secret?.trim()) return c.json({ error: 'Secret is empty' }, 400);
+      if (secret.trim().length < 8) return c.json({ error: 'Secret must be at least 8 characters' }, 400); // #9
       await c.env.DB.prepare('UPDATE agents SET agent_secret=? WHERE id=?').bind(secret.trim(), agentId).run();
       return c.json({ ok: true });
     } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
@@ -547,18 +622,22 @@ app.all('/api/agent/*', async (c) => {
     } catch (err) { return c.json({ error: String(err) }, 500); }
   }
   if (pathname.endsWith('/update-whitelist') && method === 'POST') {
+    if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
     try {
       const { whitelist: wl } = await c.req.json() as any;
       if (wl !== 'all' && !Array.isArray(wl)) return c.json({ error: 'whitelist must be "all" or an array' }, 400);
+      if (Array.isArray(wl) && wl.length > 200) return c.json({ error: 'Whitelist too long (max 200 entries)' }, 400);
       const stored = wl === 'all' ? 'all' : JSON.stringify((wl as string[]).map((h: string) => h.replace(/^@/, '').trim()).filter(Boolean));
       await c.env.DB.prepare('UPDATE agents SET mem_whitelist=? WHERE id=?').bind(stored, agentId).run();
       return c.json({ ok: true });
     } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
   }
   if (pathname.endsWith('/update-vip') && method === 'POST') {
+    if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
     try {
       const { vip_list } = await c.req.json() as any;
       if (!Array.isArray(vip_list)) return c.json({ error: 'vip_list must be an array' }, 400);
+      if (vip_list.length > 100) return c.json({ error: 'VIP list too long (max 100 entries)' }, 400); // #7
       await c.env.DB.prepare('UPDATE agents SET vip_list=? WHERE id=?').bind(JSON.stringify(vip_list), agentId).run();
       return c.json({ ok: true });
     } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }

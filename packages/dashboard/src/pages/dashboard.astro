@@ -305,14 +305,23 @@
   var _agentData = null;
   var _vipList = [];
   var _wlHandles = [];
+  var _sessionToken = sessionStorage.getItem('sessionToken') || '';
 
   function getApiUrl(path) {
     return path + '?id=' + _agentId;
   }
 
+  function authHeaders() {
+    var h = { 'Content-Type': 'application/json' };
+    if (_sessionToken) h['X-Session-Token'] = _sessionToken;
+    return h;
+  }
+
   // ── Auth ─────────────────────────────────────────────────────────────────
   (function init() {
     var saved = sessionStorage.getItem('dashSecret');
+    _sessionToken = sessionStorage.getItem('sessionToken') || '';
+    if (_sessionToken) { showDashboard(); return; }
     if (saved) doAuthSecret(saved);
   })();
 
@@ -340,8 +349,11 @@
       body: JSON.stringify({ agentId: _agentId, accessToken })
     });
     var d = await r.json();
-    if (d.ok) { showDashboard(); }
-    else {
+    if (d.ok) {
+      _sessionToken = d.sessionToken || '';
+      sessionStorage.setItem('sessionToken', _sessionToken);
+      showDashboard();
+    } else {
       var err = document.getElementById('auth-err');
       err.style.display = 'block';
       err.textContent = 'Auth failed: ' + (d.error || 'Handle mismatch');
@@ -361,8 +373,12 @@
       body: JSON.stringify({ agentId: _agentId, secret })
     });
     var d = await r.json();
-    if (d.ok) { sessionStorage.setItem('dashSecret', secret); showDashboard(); }
-    else if (fromInput) {
+    if (d.ok) {
+      sessionStorage.setItem('dashSecret', secret);
+      _sessionToken = d.sessionToken || '';
+      sessionStorage.setItem('sessionToken', _sessionToken);
+      showDashboard();
+    } else if (fromInput) {
       var err = document.getElementById('auth-err');
       err.style.display = 'block';
       err.textContent = document.body.classList.contains('en-mode') ? 'Incorrect password' : '密码错误';
@@ -374,7 +390,12 @@
   });
 
   function doLogout() {
+    // Invalidate session on backend before clearing local state
+    if (_sessionToken) {
+      fetch('/api/agent/logout?id=' + _agentId, { method: 'POST', headers: { 'X-Session-Token': _sessionToken } }).catch(function(){});
+    }
     sessionStorage.removeItem('dashSecret');
+    sessionStorage.removeItem('sessionToken');
     location.reload();
   }
 
@@ -470,7 +491,7 @@
     requestAnimationFrame(function() { requestAnimationFrame(function() { out.classList.add('visible'); }); });
     body.textContent = isEn ? '⏳ Requesting...' : '⏳ 请求中……';
     try {
-      var res = await fetch(path);
+      var res = await fetch(path, { headers: _sessionToken ? { 'X-Session-Token': _sessionToken } : {} });
       var text = await res.text();
       try { body.textContent = JSON.stringify(JSON.parse(text), null, 2); } catch(e) { body.textContent = text; }
     } catch(e) { body.textContent = '❌ ' + e.message; }
@@ -519,7 +540,7 @@
     st.textContent = isEn ? '⏳ Saving...' : '⏳ 保存中...'; st.style.color = '#94a3b8';
     try {
       var r = await fetch(getApiUrl('/api/agent/update-skill'), {
-        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ skill })
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ skill })
       });
       var d = await r.json();
       st.textContent = d.ok ? (isEn ? '✅ Saved' : '✅ 已保存') : '❌ ' + d.error;
@@ -534,7 +555,7 @@
     st.textContent = isEn ? '⏳ Saving...' : '⏳ 保存中...'; st.style.color = '#94a3b8';
     try {
       var r = await fetch(getApiUrl('/api/agent/update-config'), {
-        method: 'POST', headers: {'Content-Type':'application/json'},
+        method: 'POST', headers: authHeaders(),
         body: JSON.stringify({
           reply_pct: parseFloat(document.getElementById('cfg-reply').value),
           like_pct: parseFloat(document.getElementById('cfg-like').value),
@@ -571,7 +592,7 @@
     st.textContent = '⏳'; st.style.color = '#94a3b8';
     try {
       var r = await fetch(getApiUrl('/api/agent/update-vip'), {
-        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ vip_list: _vipList })
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ vip_list: _vipList })
       });
       var d = await r.json();
       st.textContent = d.ok ? '✅' : '❌ ' + d.error;
@@ -634,7 +655,7 @@
     st.textContent = isEn ? '⏳ Saving...' : '⏳ 保存中...'; st.style.color = '#94a3b8';
     try {
       var r = await fetch(getApiUrl('/api/agent/update-whitelist'), {
-        method: 'POST', headers: {'Content-Type':'application/json'},
+        method: 'POST', headers: authHeaders(),
         body: JSON.stringify({ whitelist: mode === 'all' ? 'all' : _wlHandles })
       });
       var d = await r.json();
@@ -652,7 +673,7 @@
     st.textContent = isEn ? '⏳ Saving...' : '⏳ 保存中...'; st.style.color = '#94a3b8';
     try {
       var r = await fetch(getApiUrl('/api/agent/update-secret'), {
-        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ secret })
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ secret })
       });
       var d = await r.json();
       if (d.ok) { sessionStorage.setItem('dashSecret', secret); }

@@ -78,6 +78,8 @@ export interface Env {
   KO_FI_VERIFICATION_TOKEN?: string;
   /** Minimum donation amount to generate a license key, e.g. "9" (set in wrangler.toml vars) */
   KO_FI_MINIMUM_AMOUNT?: string;
+  /** Secret for protecting the HTTP /api/cron trigger (set via wrangler secret put CRON_SECRET) */
+  CRON_SECRET?: string;
 }
 
 // ─── X API types ───────────────────────────────────────────────────────────────

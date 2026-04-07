@@ -416,8 +416,8 @@ import Layout from "../layouts/Layout.astro";
       >
     </h2>
     <div class="subtitle">
-      <span class="lang-zh">调整互动概率与冷却时间。</span><span class="lang-en"
-        >Adjust interaction probability and cooldown.</span
+      <span class="lang-zh">调整回复概率与点赞概率。</span><span class="lang-en"
+        >Adjust reply and like probability.</span
       >
     </div>
 
@@ -435,27 +435,6 @@ import Layout from "../layouts/Layout.astro";
     >
     <input type="number" id="likePct" step="0.1" value="0.8" />
 
-    <label
-      ><span class="lang-zh">回复冷却时间（小时）</span><span class="lang-en"
-        >Reply Cooldown (Hours)</span
-      ></label
-    >
-    <input type="number" id="cooldown" value="3" />
-
-    <label class="flex items-center gap-2 mt-4">
-      <input type="checkbox" id="enableEvo" checked />
-      <span
-        ><span class="lang-zh">开启夜间自动演进</span><span class="lang-en"
-          >Enable Nightly Evolution</span
-        ></span
-      >
-    </label>
-    <p class="hint">
-      <span class="lang-zh">每晚 3:00 自动总结当天互动经验优化人格。</span><span
-        class="lang-en"
-        >Automatically summarize daily interactions to optimize persona.</span
-      >
-    </p>
 
     <div class="flex justify-between mt-8">
       <button class="btn btn-ghost btn-back" data-step="4"
@@ -731,8 +710,8 @@ import Layout from "../layouts/Layout.astro";
       if (step === 4) {
         S.replyPct = parseFloat($("replyPct").value);
         S.likePct = parseFloat($("likePct").value);
-        S.cooldown = parseFloat($("cooldown").value);
-        S.enableEvo = $("enableEvo").checked;
+        S.cooldown = 3;         // fixed default
+        S.enableEvo = true;     // always on
       }
       if (step === 5) {
         S.memMode = $("memMode").value;
