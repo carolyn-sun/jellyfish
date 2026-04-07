@@ -76,6 +76,8 @@ export interface Env {
   LOCAL_ORIGIN?: string;
   /** Ko-Fi Webhook verification token (set via wrangler secret put KO_FI_VERIFICATION_TOKEN) */
   KO_FI_VERIFICATION_TOKEN?: string;
+  /** Minimum donation amount to generate a license key, e.g. "9" (set in wrangler.toml vars) */
+  KO_FI_MINIMUM_AMOUNT?: string;
 }
 
 // ─── X API types ───────────────────────────────────────────────────────────────

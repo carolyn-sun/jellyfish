@@ -388,17 +388,27 @@ app.post('/api/kofi-webhook', async (c) => {
       return c.text('OK');
     }
 
+    // Minimum amount check — configurable via KO_FI_MINIMUM_AMOUNT in wrangler.toml (default: 9)
+    const minAmount = parseFloat(c.env.KO_FI_MINIMUM_AMOUNT || '9');
+    const paidAmount = parseFloat(data.amount || '0');
+    if (paidAmount < minAmount) {
+      console.log(`[kofi] Skipping license: amount ${paidAmount} < minimum ${minAmount} for ${data.email}`);
+      return c.text('OK');
+    }
+
     const seg = () => Math.random().toString(36).slice(2, 6).toUpperCase();
     const licenseKey = `JLYF-${seg()}-${seg()}-${seg()}`;
-    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    // Duration scales with amount: $9 = 30 days, $18 = 60 days, etc.
+    const months = Math.max(1, Math.floor(paidAmount / minAmount));
+    const expiresAt = Date.now() + months * 30 * 24 * 60 * 60 * 1000;
 
     await c.env.AGENT_STATE.put(
       `license:${licenseKey}`,
-      JSON.stringify({ key: licenseKey, email: data.email || '', kofi_name: data.from_name || '', amount: data.amount || '', expires_at: expiresAt, created_at: Date.now(), type: data.type }),
-      { expirationTtl: 31 * 24 * 60 * 60 }
+      JSON.stringify({ key: licenseKey, email: data.email || '', kofi_name: data.from_name || '', amount: data.amount || '', expires_at: expiresAt, created_at: Date.now(), type: data.type, months }),
+      { expirationTtl: (months * 31 + 1) * 24 * 60 * 60 }
     );
 
-    console.log(`[kofi] License generated for ${data.email}: ${licenseKey}`);
+    console.log(`[kofi] License generated for ${data.email}: ${licenseKey} (${paidAmount} → ${months} month(s))`);
     return c.text('OK');
   } catch (err) {
     console.error('[kofi] Webhook error:', err);
