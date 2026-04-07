@@ -447,7 +447,7 @@
 
       // Fill header
       document.getElementById('dash-name').innerHTML = _agentData.agent_name + ' <span class="text-gradient">Dashboard</span>';
-      document.getElementById('dash-sub').innerHTML = '<span class="lang-zh">Agent ID:</span><span class="lang-en">Agent ID:</span> <code style="font-size:.78rem;opacity:.7">' + _agentId + '</code>';
+      document.getElementById('dash-sub').innerHTML = 'Agent ID: <code style="font-size:.78rem;opacity:.7;user-select:all">' + _agentId + '</code>';
 
       // Fill skill text
       document.getElementById('skill-text').value = _agentData.skill_text || '';
