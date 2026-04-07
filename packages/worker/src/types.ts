@@ -32,8 +32,6 @@ export interface AgentDbRecord {
   agent_name: string;
   agent_handle: string;
   source_accounts: string[]; // parsed
-  gemini_model: string;
-  gemini_api_key: string;
   refresh_token: string;
   access_token: string | null;
   token_expires_at: number;

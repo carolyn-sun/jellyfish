@@ -350,7 +350,6 @@ app.post('/api/agent/create', async (c) => {
     const config = reqJson.config;
     const skill = reqJson.skill;
     const refreshToken = reqJson.refreshToken;
-    const geminiApiKey = c.env.GEMINI_API_KEY || reqJson.geminiApiKey || '';
     const dashboardSecret = reqJson.dashboardSecret || '';
     const vipList = config.vipList ?? [];
     const memWhitelist = config.memoryWhitelist ?? [];
@@ -368,7 +367,7 @@ app.post('/api/agent/create', async (c) => {
           UPDATE agents SET
             agent_name = ?, agent_handle = ?,
             agent_secret = COALESCE(NULLIF(?, ''), agent_secret),
-            source_accounts = ?, gemini_model = ?, gemini_api_key = ?,
+            source_accounts = ?,
             refresh_token = ?, access_token = null, token_expires_at = 0,
             skill_text = ?, reply_pct = ?, like_pct = ?,
             cooldown_days = ?, auto_evo = ?, vip_list = ?, mem_whitelist = ?,
@@ -378,7 +377,6 @@ app.post('/api/agent/create', async (c) => {
           config.agentName ?? '', config.agentHandle ?? '',
           dashboardSecret,
           JSON.stringify(config.sourceAccounts ?? []),
-          config.geminiModel ?? 'gemini-2.5-pro', geminiApiKey,
           refreshToken ?? '', skill ?? '',
           config.defaultReplyProbability ?? 0.2, config.defaultLikeProbability ?? 0.8,
           config.spontaneousCooldownDays ?? 3, config.enableNightlyEvolution ? 1 : 0,
@@ -393,7 +391,7 @@ app.post('/api/agent/create', async (c) => {
       agentId = crypto.randomUUID();
       await c.env.DB.prepare(`
         INSERT INTO agents (
-          id, owner_id, agent_name, agent_handle, agent_secret, source_accounts, gemini_model, gemini_api_key,
+          id, owner_id, agent_name, agent_handle, agent_secret, source_accounts,
           refresh_token, access_token, token_expires_at, skill_text, reply_pct, like_pct,
           cooldown_days, auto_evo, vip_list, mem_whitelist, created_at, status
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, null, 0, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
@@ -401,7 +399,6 @@ app.post('/api/agent/create', async (c) => {
         agentId, 'public',
         config.agentName ?? '', config.agentHandle ?? '', dashboardSecret,
         JSON.stringify(config.sourceAccounts ?? []),
-        config.geminiModel ?? 'gemini-2.5-pro', geminiApiKey,
         refreshToken ?? '', skill ?? '',
         config.defaultReplyProbability ?? 0.2, config.defaultLikeProbability ?? 0.8,
         config.spontaneousCooldownDays ?? 3, config.enableNightlyEvolution ? 1 : 0,
