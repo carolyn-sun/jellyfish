@@ -459,13 +459,12 @@
       // Fill pro status
       var proExp = _agentData.pro_expires_at || 0;
       var proSt = document.getElementById('pro-key-status');
-      var kofiLink = ' · <a href="https://ko-fi.com/HomeCollider" target="_blank" style="color:#a78bfa;font-size:.82rem"><span class="lang-zh">☕ Ko-Fi 支持</span><span class="lang-en">☕ Support on Ko-Fi</span></a>';
       if (proExp > Date.now()) {
         sessionStorage.setItem('pro_expires_at', String(proExp));
-        proSt.innerHTML = '<span style="color:#86efac">✅ Pro 已激活，有效至 <b>' + (function(ts) { var d = new Date(ts); return (!ts || ts <= 0 || isNaN(d.getTime()) || ts > 3e12) ? '<span class="lang-zh">永远</span><span class="lang-en">Forever</span>' : d.toLocaleDateString('zh-CN'); })(proExp) + '</b></span>' + kofiLink;
+        proSt.innerHTML = '<span style="color:#86efac">✅ Pro 已激活，有效至 <b>' + (function(ts) { var d = new Date(ts); return (!ts || ts <= 0 || isNaN(d.getTime()) || ts > 3e12) ? '<span class="lang-zh">永远</span><span class="lang-en">Forever</span>' : d.toLocaleDateString('zh-CN'); })(proExp) + '</b></span>';
       } else {
         sessionStorage.removeItem('pro_expires_at');
-        proSt.innerHTML = '<span style="color:var(--text-muted)">🔒 <span class="lang-zh">未激活</span><span class="lang-en">Not activated</span></span>' + kofiLink;
+        proSt.innerHTML = '<span style="color:var(--text-muted)">🔒 <span class="lang-zh">未激活</span><span class="lang-en">Not activated</span></span>';
       }
 
       // Fill VIP list
