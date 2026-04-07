@@ -59,8 +59,6 @@
     body.en-mode .lang-zh{display:none!important}body.en-mode .lang-en{display:inline!important}
     .vip-chip{display:inline-flex;align-items:center;gap:5px;padding:.2rem .6rem .2rem .7rem;background:rgba(20,184,166,0.1);border:1px solid rgba(20,184,166,0.25);border-radius:999px;color:#5eead4;margin:.2rem .15rem;font-size:.78rem;font-family:monospace;letter-spacing:.01em;transition:border-color .15s,background .15s}
     .vip-chip:hover{background:rgba(20,184,166,0.15);border-color:rgba(20,184,166,0.4)}
-    .vip-chip .chip-del{background:none;border:none;color:rgba(248,113,113,0.4);cursor:pointer;font-size:.9rem;line-height:1;padding:0;transition:color .15s}
-    .vip-chip .chip-del:hover{color:#f87171}
     .btn-loading{position:relative;pointer-events:none;opacity:.75}
     .btn-loading::after{content:'';position:absolute;right:10px;top:50%;width:14px;height:14px;margin-top:-7px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
@@ -666,7 +664,7 @@
   function renderWlChips() {
     var el = document.getElementById('wl-chips');
     el.innerHTML = _wlHandles.map(function(h, i) {
-      return '<span class="vip-chip">@' + h + '<button class="chip-del" onclick="removeWlHandle(' + i + ')" title="Remove">✕</button></span>';
+      return '<span class="vip-chip">@' + h + '<button onclick="removeWlHandle(' + i + ')" title="Remove" style="background:none;border:none;color:rgba(248,113,113,0.4);cursor:pointer;font-size:.9rem;line-height:1;padding:0;margin-left:2px;transition:color .15s" onmouseover="this.style.color=\'#f87171\'" onmouseout="this.style.color=\'rgba(248,113,113,0.4)\'">✕</button></span>';
     }).join('');
   }
 
