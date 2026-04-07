@@ -52,16 +52,6 @@ export async function fetchGemini(
     body.generationConfig = genConfig;
   }
 
-  // Disable all safety filters — the agent persona may produce content that
-  // triggers Gemini's default thresholds (e.g. sarcasm, dark humour).
-  body.safetySettings = [
-    { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_NONE' },
-    { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_NONE' },
-    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-    { category: 'HARM_CATEGORY_CIVIC_INTEGRITY',   threshold: 'BLOCK_NONE' },
-  ];
-
   const res = await fetch(url, {
     method: 'POST',
     headers: {
