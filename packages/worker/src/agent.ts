@@ -193,7 +193,34 @@ export async function runMentionLoop(env: Env, agent: AgentDbRecord): Promise<{ 
   const userMap = buildUserMap(response.includes);
 
   // X returns newest-first; process oldest-first so IDs advance monotonically
-  const mentions = [...response.data].reverse().slice(0, MAX_PROCESS_PER_RUN);
+  const allMentions = [...response.data].reverse().slice(0, MAX_PROCESS_PER_RUN);
+
+  // ── Deduplicate by conversation_id ─────────────────────────────────────────
+  // In a multi-person discussion thread, multiple participants may @mention the
+  // agent in the same conversation. We should only respond ONCE per thread to
+  // avoid spamming similar replies. Keep only the newest mention per conversation
+  // (after reverse(), the last entry per conversation_id is the most recent).
+  const seenConversations = new Map<string, XTweet>(); // conversation_id → mention
+  for (const mention of allMentions) {
+    const convId = mention.conversation_id ?? mention.id;
+    seenConversations.set(convId, mention); // later entries overwrite → newest wins
+  }
+  const mentions = [...seenConversations.values()];
+
+  // Mark any mention that was deduplicated-away as already replied to,
+  // so they don't get picked up in future runs either.
+  for (const mention of allMentions) {
+    const convId = mention.conversation_id ?? mention.id;
+    const chosen = seenConversations.get(convId);
+    if (chosen && chosen.id !== mention.id) {
+      const originalId = mention.edit_history_tweet_ids?.[0] ?? mention.id;
+      const alreadyLocked = await hasReplied(env, agent.id, originalId);
+      if (!alreadyLocked) {
+        await markReplied(env, agent.id, originalId);
+        console.log(`[agent ${agent.id}] Deduped mention ${originalId} (same conv ${convId} as chosen ${chosen.id}) — marked as handled`);
+      }
+    }
+  }
 
   let processed = 0;
   let latestSuccessId = sinceId;
@@ -227,6 +254,20 @@ export async function runMentionLoop(env: Env, agent: AgentDbRecord): Promise<{ 
     } else {
       console.warn(`[agent ${agent.id}] Stopping cursor advancement at mention ${mention.id} due to failure`);
       break;
+    }
+  }
+
+  // Advance cursor to the highest ID among ALL allMentions entries that we've
+  // successfully handled (either by processing or by dedup-marking). This ensures
+  // deduplicated mentions don't resurface in the next polling run.
+  if (lastError === undefined) {
+    // No errors — all allMentions were handled; find the highest ID.
+    const maxId = allMentions.reduce((best, m) => {
+      // Compare snowflake IDs lexicographically (they're monotonically increasing)
+      return m.id > best ? m.id : best;
+    }, sinceId ?? '');
+    if (maxId && maxId !== sinceId) {
+      latestSuccessId = maxId;
     }
   }
 
