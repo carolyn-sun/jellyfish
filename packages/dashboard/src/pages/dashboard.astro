@@ -455,7 +455,9 @@
   // ── Auth initialisation ───────────────────────────────────────────────────
   (function init() {
     _sessionToken = sessionStorage.getItem('sessionToken') || '';
-    var saved = sessionStorage.getItem('dashSecret');
+    // NOTE: We no longer cache dashSecret in sessionStorage to prevent cross-tab
+    // silent login bleed. Only sessionToken (server-validated, agentId-bound) is used.
+    sessionStorage.removeItem('dashSecret'); // clear any legacy cached password
 
     // Mobile resume: detect _oauthDone in URL after redirect from callback
     var urlParams = new URLSearchParams(window.location.search);
@@ -487,15 +489,8 @@
       // Try to load agent info for the badge, then show login
       fetch('/api/agent/detail?id=' + _agentId)
         .then(function(r) { return r.json(); })
-        .then(function(d) {
-          showLoginStep(d.agent_name || '', d.agent_handle || '');
-          // Auto-try saved secret after we know the agent
-          if (saved && !_sessionToken) doAuthSecret(saved);
-        })
-        .catch(function() {
-          showLoginStep('', '');
-          if (saved && !_sessionToken) doAuthSecret(saved);
-        });
+        .then(function(d) { showLoginStep(d.agent_name || '', d.agent_handle || ''); })
+        .catch(function() { showLoginStep('', ''); });
     } else {
       showFindStep();
     }
@@ -645,7 +640,7 @@
     });
     var d = await r.json();
     if (d.ok) {
-      sessionStorage.setItem('dashSecret', secret);
+      // Only store the server-issued session token — never cache the raw password
       _sessionToken = d.sessionToken || '';
       sessionStorage.setItem('sessionToken', _sessionToken);
       showDashboard();
@@ -964,7 +959,6 @@
         method: 'POST', headers: authHeaders(), body: JSON.stringify({ secret })
       });
       var d = await r.json();
-      if (d.ok) { sessionStorage.setItem('dashSecret', secret); }
       st.textContent = d.ok ? (isEn ? '✅ Saved' : '✅ 已保存') : '❌ ' + d.error;
       st.style.color = d.ok ? '#86efac' : '#f87171';
     } catch(e) { st.textContent = '❌ ' + e.message; st.style.color = '#f87171'; }

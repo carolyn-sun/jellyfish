@@ -298,15 +298,22 @@ app.post('/api/agent/verify-secret', async (c) => {
   if (!results || results.length === 0) return c.json({ ok: false, error: 'Agent not found' }, 404);
   const dbSecret = (results[0] as any).agent_secret as string;
 
-  // Timing-safe comparison (#3)
+  // Constant-time comparison to prevent timing side-channel attacks (#3)
+  // XOR every byte and OR the differences — never short-circuits
   let ok = false;
   if (dbSecret && secret) {
     const enc = new TextEncoder();
-    const a = enc.encode(dbSecret.padEnd(256)), b = enc.encode(secret.padEnd(256));
-    if (a.length === b.length) {
-      try { ok = crypto.subtle ? (await crypto.subtle.digest('SHA-256', a)).byteLength > 0 && dbSecret === secret : dbSecret === secret; } catch { ok = dbSecret === secret; }
-    }
-    ok = dbSecret === secret; // CF Workers supports basic comparison safely; above is belt-and-suspenders
+    const a = enc.encode(dbSecret);
+    const b = enc.encode(secret);
+    // Length check itself must not leak which is longer; pad both to same length
+    const maxLen = Math.max(a.length, b.length);
+    const aPad = new Uint8Array(maxLen);
+    const bPad = new Uint8Array(maxLen);
+    aPad.set(a);
+    bPad.set(b);
+    let diff = a.length ^ b.length; // non-zero if lengths differ → ensures ok stays false
+    for (let i = 0; i < maxLen; i++) diff |= (aPad[i] ?? 0) ^ (bPad[i] ?? 0);
+    ok = diff === 0;
   }
 
   if (!ok) {
