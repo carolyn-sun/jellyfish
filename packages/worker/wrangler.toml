@@ -47,7 +47,7 @@ database_id = "13e065a3-b527-4613-8e8f-1ec7e1933d3f"
 # KO_FI_VERIFICATION_TOKEN — Ko-Fi Webhook verification token (Ko-Fi → Webhooks settings)
 
 [vars]
-GEMINI_MODEL = "gemini-3.1-pro-preview"
+GEMINI_MODEL = "gemini-3-flash-preview"
 # GEMINI_MODEL = "gemini-3.1-pro-preview"
 X_CLIENT_ID = "V1lOUm1BcWQ5bHB3V3UyalhNbXM6MTpjaQ"
 CF_GATEWAY_NAME = "jellyfish-gateway"
