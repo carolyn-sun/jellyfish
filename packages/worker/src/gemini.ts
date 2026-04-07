@@ -69,7 +69,9 @@ export async function fetchGemini(
   const data = await res.json() as {
     candidates?: Array<{
       content?: { parts?: Array<{ text?: string }> };
+      finishReason?: string;
     }>;
+    promptFeedback?: { blockReason?: string; safetyRatings?: unknown[] };
     error?: { message?: string };
   };
 
@@ -78,7 +80,12 @@ export async function fetchGemini(
   }
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('[gemini] Empty response from model');
+  if (!text) {
+    const finishReason = data.candidates?.[0]?.finishReason ?? 'no candidates';
+    const blockReason = data.promptFeedback?.blockReason ?? 'none';
+    console.error('[gemini] Empty response. finishReason:', finishReason, '| blockReason:', blockReason, '| full:', JSON.stringify(data).slice(0, 500));
+    throw new Error(`[gemini] Empty response from model (finishReason: ${finishReason}, blockReason: ${blockReason})`);
+  }
   return text.trim();
 }
 
