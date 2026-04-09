@@ -39,6 +39,12 @@ import {
 // Max mentions to process in a single cron run
 const MAX_PROCESS_PER_RUN = 5;
 
+// Max number of times this agent may reply in a single thread before bailing out
+const MAX_THREAD_DEPTH = 2;
+
+// KV TTL for the cached bot-handle set (5 minutes)
+const BOT_HANDLE_CACHE_TTL = 300;
+
 // ─── Resolve own user ID (cached in KV) ───────────────────────────────────────
 async function resolveOwnUserId(env: Env, agent: AgentDbRecord): Promise<string> {
   const cached = await getCachedOwnUserId(env, agent.id);
@@ -48,6 +54,26 @@ async function resolveOwnUserId(env: Env, agent: AgentDbRecord): Promise<string>
   await saveOwnUserId(env, agent.id, me.id);
   console.log(`[agent ${agent.id}] Own user ID resolved: @${me.username} (${me.id})`);
   return me.id;
+}
+
+// ─── Load all active agent handles (cached in KV, refreshed every 5 min) ──────
+// Used to detect cross-agent reply loops before spending any LLM tokens.
+async function getKnownBotHandles(env: Env): Promise<Set<string>> {
+  const CACHE_KEY = 'platform:bot_handles_cache';
+  const cached = await env.AGENT_STATE.get(CACHE_KEY);
+  if (cached) {
+    try { return new Set(JSON.parse(cached) as string[]); } catch { /* fall through */ }
+  }
+  try {
+    const { results } = await env.DB.prepare(
+      'SELECT LOWER(agent_handle) as h FROM agents WHERE status = "active" AND agent_handle != ""'
+    ).all();
+    const handles = (results ?? []).map(r => (r as any).h as string).filter(Boolean);
+    await env.AGENT_STATE.put(CACHE_KEY, JSON.stringify(handles), { expirationTtl: BOT_HANDLE_CACHE_TTL });
+    return new Set(handles);
+  } catch {
+    return new Set(); // on DB error, fail open (don't block all replies)
+  }
 }
 
 // ─── Resolve a source account's user ID (cached in KV) ───────────────────────
@@ -106,11 +132,20 @@ async function processMention(
   ownUserId: string,
   mediaMap: Map<string, XMedia>,
   userMap: Map<string, string>,
+  botHandles: Set<string>,
 ): Promise<boolean> {
   const originalTweetId = mention.edit_history_tweet_ids?.[0] ?? mention.id;
 
   if (await hasReplied(env, agent.id, originalTweetId)) {
     console.log(`[agent ${agent.id}] Skipping mention ${originalTweetId} — already replied or locked`);
+    return true;
+  }
+
+  // ── Layer 1: Skip replies from other known bots on this platform ─────────────
+  const interactorUsername = mention.author_id ? userMap.get(mention.author_id) : undefined;
+  if (interactorUsername && botHandles.has(interactorUsername.toLowerCase())) {
+    console.log(`[agent ${agent.id}] Skipping mention ${mention.id} — author @${interactorUsername} is a known platform bot (loop prevention)`);
+    await markReplied(env, agent.id, originalTweetId);
     return true;
   }
 
@@ -129,14 +164,18 @@ async function processMention(
 
   const conversation = threadToConversation(thread, ownUserId, mediaMap, userMap);
 
+  // ── Layer 2: Limit how many times this agent has already replied in this thread
+  const agentReplyCount = conversation.filter(t => t.role === 'agent').length;
+  if (agentReplyCount >= MAX_THREAD_DEPTH) {
+    console.log(`[agent ${agent.id}] Thread depth limit reached (${agentReplyCount}/${MAX_THREAD_DEPTH} replies) for mention ${mention.id} — bailing out to prevent loop`);
+    return true;
+  }
+
   const last = conversation[conversation.length - 1];
   if (!last || last.role !== 'user') {
     const mediaNote = describeMedia(mention, mediaMap) ?? undefined;
-    const authorUsername = mention.author_id ? userMap.get(mention.author_id) : undefined;
-    conversation.push({ role: 'user', text: mention.text, authorId: mention.author_id, authorUsername, mediaNote });
+    conversation.push({ role: 'user', text: mention.text, authorId: mention.author_id, authorUsername: interactorUsername, mediaNote });
   }
-
-  const interactorUsername = mention.author_id ? userMap.get(mention.author_id) : undefined;
 
   // Register to known fans for timeline stalking
   if (interactorUsername) {
@@ -192,6 +231,11 @@ export async function runMentionLoop(env: Env, agent: AgentDbRecord): Promise<{ 
   const mediaMap = buildMediaMap(response.includes);
   const userMap = buildUserMap(response.includes);
 
+  // Load known bot handles once per run (shared across all mentions)
+  const botHandles = await getKnownBotHandles(env);
+  // Exclude self from the bot set so the agent doesn't skip its own continued threads
+  botHandles.delete((agent.agent_handle ?? '').toLowerCase());
+
   // X returns newest-first; process oldest-first so IDs advance monotonically
   const allMentions = [...response.data].reverse().slice(0, MAX_PROCESS_PER_RUN);
 
@@ -234,7 +278,7 @@ export async function runMentionLoop(env: Env, agent: AgentDbRecord): Promise<{ 
 
     let success = false;
     try {
-      success = await processMention(env, agent, mention, ownUserId, mediaMap, userMap);
+      success = await processMention(env, agent, mention, ownUserId, mediaMap, userMap, botHandles);
       if (success) processed++;
     } catch (err) {
       const errStr = String(err);
@@ -367,7 +411,17 @@ export async function runTimelineEngagement(env: Env, agent: AgentDbRecord): Pro
   let likes = 0;
   let replies = 0;
 
+  // ── Layer 1: Skip if the tweet author is a known platform bot ───────────────
+  const botHandles = await getKnownBotHandles(env);
+  botHandles.delete((agent.agent_handle ?? '').toLowerCase());
+
   for (const item of toEvaluate) {
+    const authorHandle = item.user.username.toLowerCase();
+    if (botHandles.has(authorHandle)) {
+      console.log(`[agent ${agent.id}] Skipping timeline tweet ${item.tweet.id} — author @${item.user.username} is a known platform bot`);
+      await markTimelineTweetSeen(env, agent.id, item.tweet.id);
+      continue;
+    }
     console.log(`[agent ${agent.id}] Evaluating timeline tweet ${item.tweet.id} from @${item.user.username}...`);
     await markTimelineTweetSeen(env, agent.id, item.tweet.id);
 
