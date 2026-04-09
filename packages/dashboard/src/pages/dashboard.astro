@@ -353,6 +353,18 @@
       <div id="reauth-status" class="status-tag" style="margin-left:12px"></div>
     </div>
 
+    <!-- Pause / Resume Agent -->
+    <div class="card wide" style="border-color:rgba(251,191,36,0.3);margin-top:8px">
+      <h2 style="color:#fbbf24">⏸️ <span class="lang-zh">暂停 / 恢复 Agent</span><span class="lang-en">Pause / Resume Agent</span></h2>
+      <p><span class="lang-zh">暂停后 Agent 将停止所有自动巡逻任务（提及扫描、时间线互动、自发推文等），随时可恢复。</span><span class="lang-en">When paused, the Agent will stop all automatic tasks (mention scanning, timeline engagement, spontaneous tweets, etc.). You can resume at any time.</span></p>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+        <button class="btn" id="toggleStatusBtn" onclick="doToggleStatus()" style="border:1px solid rgba(251,191,36,0.5);color:#fbbf24;background:rgba(251,191,36,0.08)">
+          <span id="toggleStatusLabel"><span class="lang-zh">加载中…</span><span class="lang-en">Loading…</span></span>
+        </button>
+        <span id="toggle-status-tag" class="status-tag"></span>
+      </div>
+    </div>
+
     <!-- Danger Zone: Delete Agent -->
     <div class="card wide" style="border-color:rgba(239,68,68,0.3);margin-top:8px">
       <h2 style="color:#f87171">🗑️ <span class="lang-zh">删除 Agent</span><span class="lang-en">Delete Agent</span></h2>
@@ -365,6 +377,7 @@
       </div>
     </div>
   </div>
+
 </div>
 </div>
 
@@ -756,6 +769,9 @@
       // Update href links
       document.getElementById('view-memory-btn').href = '/api/agent/memory?id=' + _agentId;
       document.getElementById('activity-log-btn').href = '/api/agent/activity?id=' + _agentId;
+
+      // Sync pause/resume button
+      syncToggleBtn(_agentData.status || 'active');
     } catch(e) { console.error('loadAgentData error:', e); }
   }
 
@@ -1031,6 +1047,55 @@
         }
       }, 1000);
     } catch(e) { st.textContent = '❌ ' + e.message; st.style.color = '#f87171'; btn.disabled = false; }
+  }
+
+  async function doToggleStatus() {
+    var isEn = document.body.classList.contains('en-mode');
+    var btn = document.getElementById('toggleStatusBtn');
+    var tag = document.getElementById('toggle-status-tag');
+    btn.disabled = true;
+    tag.textContent = isEn ? 'Updating…' : '更新中…';
+    tag.style.color = 'var(--text-muted)';
+    try {
+      var r = await fetch(getApiUrl('/api/agent/toggle-status'), {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      var d = await r.json();
+      if (d.ok) {
+        syncToggleBtn(d.status);
+        tag.textContent = d.status === 'paused'
+          ? (isEn ? '✅ Agent paused' : '✅ 已暂停')
+          : (isEn ? '✅ Agent resumed' : '✅ 已恢复运行');
+        tag.style.color = '#86efac';
+      } else {
+        tag.textContent = '❌ ' + (d.error || 'Error');
+        tag.style.color = '#f87171';
+      }
+    } catch(e) {
+      tag.textContent = '❌ ' + e.message;
+      tag.style.color = '#f87171';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function syncToggleBtn(status) {
+    var isEn = document.body.classList.contains('en-mode');
+    var btn = document.getElementById('toggleStatusBtn');
+    var label = document.getElementById('toggleStatusLabel');
+    if (!btn || !label) return;
+    if (status === 'paused') {
+      label.innerHTML = '▶️ <span class="lang-zh">恢复 Agent</span><span class="lang-en">Resume Agent</span>';
+      btn.style.borderColor = 'rgba(134,239,172,0.5)';
+      btn.style.color = '#86efac';
+      btn.style.background = 'rgba(134,239,172,0.08)';
+    } else {
+      label.innerHTML = '⏸️ <span class="lang-zh">暂停 Agent</span><span class="lang-en">Pause Agent</span>';
+      btn.style.borderColor = 'rgba(251,191,36,0.5)';
+      btn.style.color = '#fbbf24';
+      btn.style.background = 'rgba(251,191,36,0.08)';
+    }
   }
 
   async function doDeleteAgent() {

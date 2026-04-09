@@ -711,6 +711,17 @@ app.all('/api/agent/*', async (c) => {
     } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
   }
 
+  if (pathname.endsWith('/toggle-status') && method === 'POST') {
+    if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
+    try {
+      const currentStatus = (agent as any).status as string || 'active';
+      const newStatus = currentStatus === 'active' ? 'paused' : 'active';
+      await c.env.DB.prepare('UPDATE agents SET status = ? WHERE id = ?').bind(newStatus, agentId).run();
+      console.log(`[api] Agent ${agentId} status changed: ${currentStatus} → ${newStatus}`);
+      return c.json({ ok: true, status: newStatus });
+    } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
+  }
+
   if (pathname.endsWith('/delete') && method === 'POST') {
     if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
     try {
@@ -738,6 +749,7 @@ app.all('/api/agent/*', async (c) => {
       return c.json({ ok: true });
     } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
   }
+
 
   return c.json({ error: 'Unknown agent action' }, 404);
 });
