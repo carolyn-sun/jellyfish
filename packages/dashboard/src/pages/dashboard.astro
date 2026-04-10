@@ -252,13 +252,13 @@
         <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="runPro(event,getApiUrl('/api/agent/spontaneous')+'&force=true');return false"><span class="lang-zh">立即发布</span><span class="lang-en">Post Now</span></a>
       </div>
       <div class="card" style="border-color:rgba(139,92,246,0.25)">
-        <h2 style="font-size:.95rem">🧠 <span class="lang-zh">立即拉取记忆</span><span class="lang-en">Force Refresh Memory</span></h2>
-        <p style="font-size:.78rem"><span class="lang-zh">跳过每 6 小时周期，立即拉取最新互动记忆</span><span class="lang-en">Skip the 6h schedule and refresh memories now</span></p>
+        <h2 style="font-size:.95rem">🧠 <span class="lang-zh">互动记忆 <span style="font-size:.7rem;background:rgba(139,92,246,0.2);color:#a78bfa;border-radius:4px;padding:1px 5px;margin-left:4px">Pro</span></span><span class="lang-en">Interaction Memory <span style="font-size:.7rem;background:rgba(139,92,246,0.2);color:#a78bfa;border-radius:4px;padding:1px 5px;margin-left:4px">Pro</span></span></h2>
+        <p style="font-size:.78rem"><span class="lang-zh">Pro 有效期内系统每 6 小时自动拉取互动记忆；无授权码则<b>不记忆、不演化</b>。</span><span class="lang-en">With Pro, memory is auto-refreshed every 6h. Without a license, <b>no memory is recorded</b>.</span></p>
         <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="runPro(event,getApiUrl('/api/agent/refresh-memory'));return false"><span class="lang-zh">立即拉取</span><span class="lang-en">Refresh Now</span></a>
       </div>
       <div class="card" style="border-color:rgba(139,92,246,0.25)">
-        <h2 style="font-size:.95rem">🧬 <span class="lang-zh">立即强制重塑</span><span class="lang-en">Force Evolve</span></h2>
-        <p style="font-size:.78rem"><span class="lang-zh">跳过每日 UTC 03:00 周期，立即吸收记忆重塑人格</span><span class="lang-en">Skip the daily UTC 03:00 schedule and evolve persona now</span></p>
+        <h2 style="font-size:.95rem">🧬 <span class="lang-zh">人格演化 <span style="font-size:.7rem;background:rgba(139,92,246,0.2);color:#a78bfa;border-radius:4px;padding:1px 5px;margin-left:4px">Pro</span></span><span class="lang-en">Personality Evolution <span style="font-size:.7rem;background:rgba(139,92,246,0.2);color:#a78bfa;border-radius:4px;padding:1px 5px;margin-left:4px">Pro</span></span></h2>
+        <p style="font-size:.78rem"><span class="lang-zh">Pro 有效期内每日 UTC 03:00 自动吸收记忆重塑人格；无授权码则<b>永远不会演化</b>。</span><span class="lang-en">With Pro, persona evolves nightly at UTC 03:00. Without a license, <b>evolution never runs</b>.</span></p>
         <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="runPro(event,getApiUrl('/api/agent/evolve'));return false"><span class="lang-zh">立即重塑</span><span class="lang-en">Evolve Now</span></a>
       </div>
     </div>
