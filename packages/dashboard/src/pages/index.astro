@@ -91,13 +91,16 @@ import Layout from "../layouts/Layout.astro";
     .quick-login {
       display: flex;
       gap: 8px;
-      align-items: center;
+      align-items: stretch;
       max-width: 380px;
       margin: 28px auto 0;
+      height: 44px;
     }
     .quick-login-wrap {
       position: relative;
       flex: 1;
+      display: flex;
+      align-items: stretch;
     }
     .quick-login-at {
       position: absolute;
@@ -109,15 +112,15 @@ import Layout from "../layouts/Layout.astro";
     }
     .quick-login input {
       width: 100%;
+      height: 100%;
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid var(--card-border);
       color: var(--text);
-      padding: 10px 12px 10px 34px;
+      padding: 0 12px 0 34px;
       border-radius: 12px;
       font-size: 0.9rem;
       font-family: inherit;
       transition: border-color 0.2s;
-      height: 44px;
       box-sizing: border-box;
     }
     .quick-login input:focus {
@@ -125,7 +128,7 @@ import Layout from "../layouts/Layout.astro";
       border-color: var(--primary);
     }
     .quick-login button {
-      height: 44px;
+      height: 100%;
       padding: 0 18px;
       border-radius: 12px;
       background: rgba(193, 147, 155, 0.18);
