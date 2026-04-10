@@ -126,6 +126,15 @@ function shouldAbsorbToMemory(agent: AgentDbRecord, username: string): boolean {
   return whitelist.includes(username);
 }
 
+// ─── Check if agent has a valid Pro license ────────────────────────────────────
+// pro_expires_at is stored as days since Unix epoch (same unit as the API writes it)
+export function isAgentPro(agent: AgentDbRecord): boolean {
+  const expiresDay = (agent as any).pro_expires_at as number | undefined;
+  if (!expiresDay || expiresDay <= 0) return false;
+  const todayDay = Math.floor(Date.now() / 86_400_000);
+  return expiresDay >= todayDay;
+}
+
 // ─── Process a single mention ─────────────────────────────────────────────────
 async function processMention(
   env: Env,
@@ -184,8 +193,8 @@ async function processMention(
     await addKnownFan(env, agent.id, interactorUsername);
   }
 
-  // Absorb to memory if on whitelist
-  if (interactorUsername && mention.text && shouldAbsorbToMemory(agent, interactorUsername)) {
+  // Absorb to memory if on whitelist — Pro only
+  if (isAgentPro(agent) && interactorUsername && mention.text && shouldAbsorbToMemory(agent, interactorUsername)) {
     await appendInteractionsMemory(env, agent.id, [{
       id: mention.id,
       type: mention.referenced_tweets?.some(t => t.type === 'replied_to') ? 'reply' : 'mention',
@@ -456,8 +465,12 @@ export async function runTimelineEngagement(env: Env, agent: AgentDbRecord): Pro
   return { evaluated: toEvaluate.length, likes, replies };
 }
 
-// ─── Interaction Memory Refresh ──────────────────────────────────────────────
+// ─── Interaction Memory Refresh (Pro only) ─────────────────────────────────
 export async function runMemoryRefresh(env: Env, agent: AgentDbRecord): Promise<{ added: number; error?: string }> {
+  if (!isAgentPro(agent)) {
+    console.log(`[agent ${agent.id}] Memory refresh skipped — Pro license not active.`);
+    return { added: 0, error: 'pro_required' };
+  }
   try {
     const ownUserId = await resolveOwnUserId(env, agent);
     console.log(`[agent ${agent.id}] Running memory refresh...`);
@@ -494,8 +507,12 @@ export async function runMemoryRefresh(env: Env, agent: AgentDbRecord): Promise<
   }
 }
 
-// ─── Nightly Evolution (Personality Rewrite) ──────────────────────────────────
+// ─── Nightly Evolution (Personality Rewrite, Pro only) ─────────────────────────
 export async function runNightlyEvolution(env: Env, agent: AgentDbRecord): Promise<{ evolved: boolean; previousLength?: number; newLength?: number; info?: string }> {
+  if (!isAgentPro(agent)) {
+    console.log(`[agent ${agent.id}] Nightly evolution skipped — Pro license not active.`);
+    return { evolved: false, info: 'pro_required' };
+  }
   if (!agent.auto_evo) {
     return { evolved: false, info: 'Nightly evolution is disabled in config' };
   }
