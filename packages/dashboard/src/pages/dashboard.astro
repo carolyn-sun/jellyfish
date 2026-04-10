@@ -188,19 +188,6 @@
       <p style="font-size:.75rem;color:#a78bfa;margin-top:6px">⭐ <span class="lang-zh">无视冷却发推为 Pro 功能</span><span class="lang-en">Bypassing cooldown is a Pro feature</span></p>
     </div>
     <div class="card">
-      <h2>🧠 <span class="lang-zh">互动记忆</span><span class="lang-en">Interaction Memory</span></h2>
-      <p><span class="lang-zh">查看白名单用户塑造 Agent 的历史互动记录</span><span class="lang-en">View historical interaction records shaping the Agent</span></p>
-      <p style="font-size:.8rem;color:var(--text-muted);margin-top:4px">🕒 <span class="lang-zh">自动刷取：每 <b>6 小时</b>一次</span><span class="lang-en">Auto-refreshes every <b>6 hours</b></span></p>
-      <a class="btn btn-ghost" id="view-memory-btn" href="#" target="_blank"><span class="lang-zh">查看记忆</span><span class="lang-en">View Memory</span></a>
-      <p style="font-size:.75rem;color:#a78bfa;margin-top:8px">⭐ <span class="lang-zh">立即强制拉取为 Pro 功能</span><span class="lang-en">Instant force-refresh is a Pro feature</span></p>
-    </div>
-    <div class="card">
-      <h2 style="color:#c084fc">🧬 <span class="lang-zh">人格演化</span><span class="lang-en">Persona Evolution</span></h2>
-      <p><span class="lang-zh">吸收现有记忆重塑底层人格（执行后清空记忆库）</span><span class="lang-en">Absorb memories to reshape persona (clears memory after)</span></p>
-      <p style="font-size:.8rem;color:var(--text-muted);margin-top:4px">🕒 <span class="lang-zh">自动执行：每日 <b>UTC 03:00</b>，需开启「自动演化」</span><span class="lang-en">Auto-runs: daily at <b>UTC 03:00</b>, requires "Auto Evolution" enabled</span></p>
-      <p style="font-size:.75rem;color:#a78bfa;margin-top:6px">⭐ <span class="lang-zh">立即强制重塑为 Pro 功能</span><span class="lang-en">Instant force-evolve is a Pro feature</span></p>
-    </div>
-    <div class="card">
       <h2>📊 <span class="lang-zh">Agent 状态</span><span class="lang-en">Agent Status</span></h2>
       <p><span class="lang-zh">查看当前状态与配置信息</span><span class="lang-en">View current status and configuration</span></p>
       <a class="btn btn-ghost" href="#" onclick="run(event,getApiUrl('/api/agent/status'));return false"><span class="lang-zh">查看</span><span class="lang-en">View</span></a>
@@ -254,7 +241,10 @@
       <div class="card" style="border-color:rgba(139,92,246,0.25)">
         <h2 style="font-size:.95rem">🧠 <span class="lang-zh">互动记忆 <span style="font-size:.7rem;background:rgba(139,92,246,0.2);color:#a78bfa;border-radius:4px;padding:1px 5px;margin-left:4px">Pro</span></span><span class="lang-en">Interaction Memory <span style="font-size:.7rem;background:rgba(139,92,246,0.2);color:#a78bfa;border-radius:4px;padding:1px 5px;margin-left:4px">Pro</span></span></h2>
         <p style="font-size:.78rem"><span class="lang-zh">Pro 有效期内系统每 6 小时自动拉取互动记忆；无授权码则<b>不记忆、不演化</b>。</span><span class="lang-en">With Pro, memory is auto-refreshed every 6h. Without a license, <b>no memory is recorded</b>.</span></p>
-        <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="runPro(event,getApiUrl('/api/agent/refresh-memory'));return false"><span class="lang-zh">立即拉取</span><span class="lang-en">Refresh Now</span></a>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <a class="btn btn-ghost" id="view-memory-btn" href="#" target="_blank" style="font-size:.85rem;height:36px;padding:0 14px"><span class="lang-zh">📖 查看记忆</span><span class="lang-en">📖 View Memory</span></a>
+          <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa;font-size:.85rem;height:36px;padding:0 14px" href="#" onclick="runPro(event,getApiUrl('/api/agent/refresh-memory'));return false"><span class="lang-zh">⚡ 立即拉取</span><span class="lang-en">⚡ Refresh Now</span></a>
+        </div>
       </div>
       <div class="card" style="border-color:rgba(139,92,246,0.25)">
         <h2 style="font-size:.95rem">🧬 <span class="lang-zh">人格演化 <span style="font-size:.7rem;background:rgba(139,92,246,0.2);color:#a78bfa;border-radius:4px;padding:1px 5px;margin-left:4px">Pro</span></span><span class="lang-en">Personality Evolution <span style="font-size:.7rem;background:rgba(139,92,246,0.2);color:#a78bfa;border-radius:4px;padding:1px 5px;margin-left:4px">Pro</span></span></h2>
