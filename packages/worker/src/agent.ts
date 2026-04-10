@@ -78,6 +78,31 @@ async function getKnownBotHandles(env: Env): Promise<Set<string>> {
   }
 }
 
+// ─── Load all active agent Twitter user IDs (from KV own_user_id caches) ───────
+// This is the immutable-ID companion to getKnownBotHandles.
+// KV reads are done in parallel to minimise latency.
+async function getKnownBotUserIds(env: Env): Promise<Set<string>> {
+  const CACHE_KEY = 'platform:bot_userids_cache';
+  const cached = await env.AGENT_STATE.get(CACHE_KEY);
+  if (cached) {
+    try { return new Set(JSON.parse(cached) as string[]); } catch { /* fall through */ }
+  }
+  try {
+    const { results } = await env.DB.prepare(
+      'SELECT id FROM agents WHERE status = "active"'
+    ).all();
+    const agentIds = (results ?? []).map(r => (r as any).id as string).filter(Boolean);
+    // Fetch each agent's cached Twitter user ID from KV in parallel
+    const userIds = (await Promise.all(
+      agentIds.map(id => env.AGENT_STATE.get(`agent:${id}:own_user_id`))
+    )).filter((uid): uid is string => uid !== null);
+    await env.AGENT_STATE.put(CACHE_KEY, JSON.stringify(userIds), { expirationTtl: BOT_HANDLE_CACHE_TTL });
+    return new Set(userIds);
+  } catch {
+    return new Set(); // fail open
+  }
+}
+
 // ─── Resolve a source account's user ID (cached in KV) ───────────────────────
 async function resolveSourceUserId(env: Env, agent: AgentDbRecord, username: string): Promise<string | null> {
   const cached = await getCachedSourceUserId(env, agent.id, username);
@@ -144,6 +169,7 @@ async function processMention(
   mediaMap: Map<string, XMedia>,
   userMap: Map<string, string>,
   botHandles: Set<string>,
+  botUserIds: Set<string>,
 ): Promise<boolean> {
   const originalTweetId = mention.edit_history_tweet_ids?.[0] ?? mention.id;
 
@@ -152,10 +178,17 @@ async function processMention(
     return true;
   }
 
-  // ── Layer 1: Skip replies from other known bots on this platform ─────────────
+  // ── Layer 0: Block by immutable Twitter user ID (most reliable) ─────────────
+  if (mention.author_id && botUserIds.has(mention.author_id)) {
+    console.log(`[agent ${agent.id}] Skipping mention ${mention.id} — author_id ${mention.author_id} is a known platform bot (ID-based loop prevention)`);
+    await markReplied(env, agent.id, originalTweetId);
+    return true;
+  }
+
+  // ── Layer 1: Block by handle (fallback when KV user ID not yet cached) ───────
   const interactorUsername = mention.author_id ? userMap.get(mention.author_id) : undefined;
   if (interactorUsername && botHandles.has(interactorUsername.toLowerCase())) {
-    console.log(`[agent ${agent.id}] Skipping mention ${mention.id} — author @${interactorUsername} is a known platform bot (loop prevention)`);
+    console.log(`[agent ${agent.id}] Skipping mention ${mention.id} — author @${interactorUsername} is a known platform bot (handle-based loop prevention)`);
     await markReplied(env, agent.id, originalTweetId);
     return true;
   }
@@ -242,10 +275,14 @@ export async function runMentionLoop(env: Env, agent: AgentDbRecord): Promise<{ 
   const mediaMap = buildMediaMap(response.includes);
   const userMap = buildUserMap(response.includes);
 
-  // Load known bot handles once per run (shared across all mentions)
-  const botHandles = await getKnownBotHandles(env);
-  // Exclude self from the bot set so the agent doesn't skip its own continued threads
+  // Load known bot handles AND user IDs once per run (two-layer loop prevention)
+  const [botHandles, botUserIds] = await Promise.all([
+    getKnownBotHandles(env),
+    getKnownBotUserIds(env),
+  ]);
+  // Exclude self from both sets so the agent doesn't skip its own continued threads
   botHandles.delete((agent.agent_handle ?? '').toLowerCase());
+  botUserIds.delete(ownUserId);
 
   // X returns newest-first; process oldest-first so IDs advance monotonically
   const allMentions = [...response.data].reverse().slice(0, MAX_PROCESS_PER_RUN);
@@ -289,7 +326,7 @@ export async function runMentionLoop(env: Env, agent: AgentDbRecord): Promise<{ 
 
     let success = false;
     try {
-      success = await processMention(env, agent, mention, ownUserId, mediaMap, userMap, botHandles);
+      success = await processMention(env, agent, mention, ownUserId, mediaMap, userMap, botHandles, botUserIds);
       if (success) processed++;
     } catch (err) {
       const errStr = String(err);
@@ -422,13 +459,20 @@ export async function runTimelineEngagement(env: Env, agent: AgentDbRecord): Pro
   let likes = 0;
   let replies = 0;
 
-  // ── Layer 1: Skip if the tweet author is a known platform bot ───────────────
-  const botHandles = await getKnownBotHandles(env);
+  // ── Layer 0+1: Skip if the tweet author is a known platform bot ─────────────
+  // Layer 0: immutable user ID check; Layer 1: handle-based fallback
+  const [botHandles, botUserIds] = await Promise.all([
+    getKnownBotHandles(env),
+    getKnownBotUserIds(env),
+  ]);
   botHandles.delete((agent.agent_handle ?? '').toLowerCase());
+  botUserIds.delete(ownUserId);
 
   for (const item of toEvaluate) {
     const authorHandle = item.user.username.toLowerCase();
-    if (botHandles.has(authorHandle)) {
+    const isBotByUserId = botUserIds.has(item.user.id);
+    const isBotByHandle = botHandles.has(authorHandle);
+    if (isBotByUserId || isBotByHandle) {
       console.log(`[agent ${agent.id}] Skipping timeline tweet ${item.tweet.id} — author @${item.user.username} is a known platform bot`);
       await markTimelineTweetSeen(env, agent.id, item.tweet.id);
       continue;
