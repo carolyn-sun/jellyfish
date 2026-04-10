@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Env, AgentDbRecord } from './types.ts';
-import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRefresh, runNightlyEvolution } from './agent.ts';
+import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRefresh, runNightlyEvolution, runRefreshSourceNames } from './agent.ts';
 import { getMe, getUserByUsername, getUserTweets } from './twitter.ts';
-import { getLastMentionId, getCachedOwnUserId, getInteractionsMemory, getActivityLog } from './memory.ts';
+import { getLastMentionId, getCachedOwnUserId, getInteractionsMemory, getActivityLog, getSourceNames } from './memory.ts';
 import { fetchSourceTweets, distillSkillFromTweets, genSample, refineSkill } from './builder.ts';
 import { listGeminiModels } from './gemini.ts';
 import { getValidAccessToken } from './auth.ts';
@@ -593,6 +593,13 @@ app.get('/api/agent/memory', async (c) => {
   return c.json(await getInteractionsMemory(c.env, agentId));
 });
 
+// Returns the cached { username → displayName } map for all source accounts
+app.get('/api/agent/source-names', async (c) => {
+  const agentId = c.req.query('id');
+  if (!agentId) return c.json({ error: 'Missing agent ID' }, 400);
+  return c.json(await getSourceNames(c.env, agentId));
+});
+
 // ── Agent admin actions (require agent lookup + optional Pro check) ─────────
 const PRO_ROUTES = ['/api/agent/refresh-memory', '/api/agent/evolve', '/api/agent/trigger-timeline', '/api/agent/spontaneous'];
 
@@ -631,6 +638,10 @@ app.all('/api/agent/*', async (c) => {
   if (pathname.endsWith('/trigger')) {
     if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
     try { return c.json({ ok: true, ...(await runMentionLoop(c.env, agent)) }); } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
+  }
+  if (pathname.endsWith('/refresh-source-names')) {
+    if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
+    try { return c.json({ ok: true, ...(await runRefreshSourceNames(c.env, agent)) }); } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
   }
   if (pathname.endsWith('/trigger-timeline')) {
     if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);

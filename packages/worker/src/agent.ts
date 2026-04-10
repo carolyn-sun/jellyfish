@@ -34,6 +34,8 @@ import {
   appendInteractionsMemory,
   getInteractionsMemory,
   clearInteractionsMemory,
+  getSourceNames,
+  saveSourceNames,
 } from './memory.ts';
 
 // Max mentions to process in a single cron run
@@ -542,4 +544,51 @@ export async function runNightlyEvolution(env: Env, agent: AgentDbRecord): Promi
     console.error(`[agent ${agent.id}] runNightlyEvolution error:`, e);
     return { evolved: false, info: 'Error: ' + String(e) };
   }
+}
+
+// ─── Refresh Source Account Display Names (Daily) ────────────────────────────
+/**
+ * Fetches the current display name for each source account via the Twitter API
+ * and caches the { username → name } map in KV for the dashboard to consume.
+ * Runs once per day; gracefully skips accounts that fail to resolve.
+ */
+export async function runRefreshSourceNames(
+  env: Env,
+  agent: AgentDbRecord,
+): Promise<{ updated: number; failed: number }> {
+  const usernames = agent.source_accounts;
+  if (usernames.length === 0) {
+    console.log(`[agent ${agent.id}] No source accounts to refresh names for.`);
+    return { updated: 0, failed: 0 };
+  }
+
+  console.log(`[agent ${agent.id}] Refreshing display names for ${usernames.length} source account(s): ${usernames.join(', ')}`);
+
+  // Load existing cache so we can merge partial results
+  const existing = await getSourceNames(env, agent.id);
+  const updated = { ...existing };
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const username of usernames) {
+    try {
+      const user = await getUserByUsername(env, agent, username);
+      if (user) {
+        updated[user.username] = user.name;
+        successCount++;
+        console.log(`[agent ${agent.id}] Source @${user.username} → "${user.name}"`);
+      } else {
+        console.warn(`[agent ${agent.id}] Could not resolve @${username}`);
+        failCount++;
+      }
+    } catch (err) {
+      console.warn(`[agent ${agent.id}] Error fetching display name for @${username}:`, err);
+      failCount++;
+    }
+  }
+
+  await saveSourceNames(env, agent.id, updated);
+  console.log(`[agent ${agent.id}] Source name refresh done. Updated: ${successCount}, Failed: ${failCount}.`);
+
+  return { updated: successCount, failed: failCount };
 }

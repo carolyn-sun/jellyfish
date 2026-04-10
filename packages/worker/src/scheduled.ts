@@ -1,5 +1,5 @@
 import type { Env, AgentDbRecord } from './types.ts';
-import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRefresh, runNightlyEvolution } from './agent.ts';
+import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRefresh, runNightlyEvolution, runRefreshSourceNames } from './agent.ts';
 
 export async function getAllActiveAgents(env: Env): Promise<AgentDbRecord[]> {
   const { results } = await env.DB.prepare('SELECT * FROM agents WHERE status = "active"').all();
@@ -26,6 +26,8 @@ export async function runScheduled(cron: string | undefined, env: Env, ctx: Exec
   const isSpontaneousTime = hours === 12 && mins === 30;
   const isMemoryTime = hours % 6 === 0 && mins === 0;
   const isNightlyEvo = hours === 3 && mins === 0;
+  // Refresh source account display names once a day at UTC 02:00
+  const isSourceNameRefresh = hours === 2 && mins === 0;
 
   for (const agent of agents) {
     if (cron === '* * * * *' || !cron) {
@@ -53,6 +55,9 @@ export async function runScheduled(cron: string | undefined, env: Env, ctx: Exec
     }
     if (isNightlyEvo || cron === '0 3 * * *') {
       ctx.waitUntil(runNightlyEvolution(env, agent).catch(e => console.error(`[worker] nightly evolution error for ${agent.id}:`, e)));
+    }
+    if (isSourceNameRefresh || cron === '0 2 * * *') {
+      ctx.waitUntil(runRefreshSourceNames(env, agent).catch(e => console.error(`[worker] source name refresh error for ${agent.id}:`, e)));
     }
   }
 }

@@ -11,6 +11,7 @@ export const KEYS = {
   RECENT_SPONTANEOUS: (id: string) => `agent:${id}:recent_spontaneous`,
   INTERACTIONS_MEMORY: (id: string) => `agent:${id}:interactions_memory`,
   ACTIVITY_LOG: (id: string) => `agent:${id}:activity_log`,
+  SOURCE_NAMES: (id: string) => `agent:${id}:source_names`,
 } as const;
 
 // ─── Token persistence ─────────────────────────────────────────────────────────
@@ -52,6 +53,18 @@ export async function getCachedSourceUserId(env: Env, agentId: string, username:
 
 export async function saveSourceUserId(env: Env, agentId: string, username: string, userId: string): Promise<void> {
   await env.AGENT_STATE.put(KEYS.sourceUserId(agentId, username), userId, { expirationTtl: 7 * 24 * 3600 });
+}
+
+// ─── Source account display names cache ──────────────────────────────────────
+/** Returns a map of { username → displayName } for all cached source account names */
+export async function getSourceNames(env: Env, agentId: string): Promise<Record<string, string>> {
+  const raw = await env.AGENT_STATE.get(KEYS.SOURCE_NAMES(agentId));
+  try { return raw ? JSON.parse(raw) as Record<string, string> : {}; } catch { return {}; }
+}
+
+export async function saveSourceNames(env: Env, agentId: string, names: Record<string, string>): Promise<void> {
+  // Cache for 25 hours (refreshed daily; slight overlap avoids stale windows)
+  await env.AGENT_STATE.put(KEYS.SOURCE_NAMES(agentId), JSON.stringify(names), { expirationTtl: 25 * 3600 });
 }
 
 // ─── Spontaneous tweet cooldown ────────────────────────────────────────────────
