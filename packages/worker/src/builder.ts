@@ -2,6 +2,14 @@ import { fetchGemini } from './gemini.ts';
 
 type GatewayConfig = { accountId: string; gateway: string; apiKey: string };
 
+// Shared language detector (mirrors the one in llm.ts)
+function detectSkillLang(skill: string): 'zh' | 'en' {
+  if (!skill) return 'zh';
+  const sample = skill.slice(0, 500);
+  const cjkCount = (sample.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) ?? []).length;
+  return cjkCount / sample.length > 0.15 ? 'zh' : 'en';
+}
+
 async function xGet(urlPath: string, accessToken: string): Promise<unknown> {
   const res = await fetch(`https://api.twitter.com/2${urlPath}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -54,10 +62,23 @@ export async function distillSkillFromTweets(
 }
 
 export async function genSample(skill: string, geminiModel: string, gatewayConfig: GatewayConfig) {
+  const lang = detectSkillLang(skill);
   const cfg = (temp: number) => ({ maxOutputTokens: 1000, temperature: temp });
   const [a, b] = await Promise.all([
-    fetchGemini(geminiModel, [{ role: 'user', parts: [{ text: '请用这个人设发一条自发推文（20字以内，不要解释）：' }] }], skill, cfg(1.1), undefined, undefined, gatewayConfig),
-    fetchGemini(geminiModel, [{ role: 'user', parts: [{ text: '[@stranger] 说了:\n这你们华人都是一个怎么想的？\n请用这个人设回复（可以输出 <skip>）：' }] }], skill, cfg(1.0), undefined, undefined, gatewayConfig),
+    fetchGemini(
+      geminiModel,
+      [{ role: 'user', parts: [{ text: lang === 'zh'
+        ? '请用这个人设发一条自发推文（20字以内，不要解释）：'
+        : 'Using this persona, post a spontaneous tweet (one or two short sentences, no explanation):' }] }],
+      skill, cfg(1.1), undefined, undefined, gatewayConfig,
+    ),
+    fetchGemini(
+      geminiModel,
+      [{ role: 'user', parts: [{ text: lang === 'zh'
+        ? '[@stranger] 说了:\n这你们华人都是一个怎么想的？\n请用这个人设回复（可以输出 <skip>）：'
+        : '[@stranger] said:\nWhy do you people always think like that?\nReply using this persona (you may output <skip>):' }] }],
+      skill, cfg(1.0), undefined, undefined, gatewayConfig,
+    ),
   ]);
   return { tweet: a ?? '(error)', reply: b ?? '(error)' };
 }
@@ -65,9 +86,14 @@ export async function genSample(skill: string, geminiModel: string, gatewayConfi
 export async function refineSkill(
   skill: string, feedback: string, geminiModel: string, gatewayConfig: GatewayConfig
 ): Promise<string> {
-  const prompt = `根据以下用户反馈更新人格配置，保持Markdown结构，只输出完整的更新后Markdown文本。\n\n当前配置：\n\`\`\`\n${skill}\n\`\`\`\n\n用户反馈：${feedback}\n\n输出：`;
-  const sysInst = '你是人格配置文件编辑引擎。保持Markdown结构和所有标题，只输出修改后的纯Markdown文本。';
-  
+  const lang = detectSkillLang(skill);
+  const prompt = lang === 'zh'
+    ? `根据以下用户反馈更新人格配置，保持Markdown结构，只输出完整的更新后Markdown文本。\n\n当前配置：\n\`\`\`\n${skill}\n\`\`\`\n\n用户反馈：${feedback}\n\n输出：`
+    : `Update the persona configuration based on the following user feedback. Preserve the Markdown structure and all headings. Output only the complete updated Markdown text.\n\nCurrent config:\n\`\`\`\n${skill}\n\`\`\`\n\nUser feedback: ${feedback}\n\nOutput:`;
+  const sysInst = lang === 'zh'
+    ? '你是人格配置文件编辑引擎。保持Markdown结构和所有标题，只输出修改后的纯Markdown文本。'
+    : 'You are a persona configuration editor. Preserve the Markdown structure and all headings. Output only the modified Markdown text.';
+
   return fetchGemini(
     geminiModel,
     [{ role: 'user', parts: [{ text: prompt }] }],
