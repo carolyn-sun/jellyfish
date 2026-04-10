@@ -87,71 +87,6 @@ import Layout from "../layouts/Layout.astro";
       border-color: rgba(255, 255, 255, 0.2);
     }
 
-    /* ── Dashboard quick-login ──────────────────────────────── */
-    .quick-login {
-      display: flex;
-      gap: 8px;
-      align-items: stretch;
-      max-width: 380px;
-      margin: 28px auto 0;
-      height: 44px;
-    }
-    .quick-login-wrap {
-      position: relative;
-      flex: 1;
-      display: flex;
-      align-items: stretch;
-    }
-    .quick-login-at {
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      opacity: 0.4;
-      pointer-events: none;
-    }
-    .quick-login input {
-      width: 100%;
-      height: 100%;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid var(--card-border);
-      color: var(--text);
-      padding: 0 12px 0 34px;
-      border-radius: 12px;
-      font-size: 0.9rem;
-      font-family: inherit;
-      transition: border-color 0.2s;
-      box-sizing: border-box;
-    }
-    .quick-login input:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-    .quick-login button {
-      height: 100%;
-      padding: 0 18px;
-      border-radius: 12px;
-      background: rgba(193, 147, 155, 0.18);
-      border: 1px solid rgba(193, 147, 155, 0.35);
-      color: var(--primary);
-      font-weight: 600;
-      font-size: 0.9rem;
-      font-family: inherit;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.2s;
-    }
-    .quick-login button:hover {
-      background: rgba(193, 147, 155, 0.28);
-    }
-    .quick-login-err {
-      font-size: 0.78rem;
-      color: var(--error);
-      margin-top: 6px;
-      text-align: center;
-      display: none;
-    }
-
     /* ── Section titles ─────────────────────────────────────── */
     .section {
       margin-top: 64px;
@@ -366,30 +301,7 @@ import Layout from "../layouts/Layout.astro";
       </a>
     </div>
 
-    <!-- Quick dashboard login -->
-    <div class="quick-login">
-      <div class="quick-login-wrap">
-        <span class="quick-login-at">@</span>
-        <input
-          type="text"
-          id="dashboardHandle"
-          data-ph-zh="已有 Agent？输入账号名"
-          data-ph-en="Have an Agent? Enter handle"
-          placeholder="已有 Agent？输入账号名"
-        />
-      </div>
-      <button id="gotoDashboardBtn">
-        <span class="lang-zh">进入控制台</span><span class="lang-en"
-          >Dashboard</span
-        >
-      </button>
-    </div>
-    <div class="quick-login-err" id="dashboardErr">
-      <span class="lang-zh" id="dashErrZh">未找到对应 Agent，请先完成部署</span>
-      <span class="lang-en" id="dashErrEn"
-        >No Agent found for this handle. Deploy first.</span
-      >
-    </div>
+
   </div>
 
   <!-- ── Features ──────────────────────────────────────────────────────── -->
