@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Env, AgentDbRecord } from './types.ts';
 import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRefresh, runNightlyEvolution, runRefreshSourceNames } from './agent.ts';
-import { getMe, getUserByUsername, getUserTweets } from './twitter.ts';
+import { getMe, getUserByUsername, getUserTweets, getMentions } from './twitter.ts';
 import { getLastMentionId, saveLastMentionId, getCachedOwnUserId, saveOwnUserId, getInteractionsMemory, getActivityLog, getSourceNames, hasReplied, markReplied } from './memory.ts';
 import { fetchSourceTweets, distillSkillFromTweets, genSample, refineSkill } from './builder.ts';
 import { listGeminiModels } from './gemini.ts';
@@ -893,6 +893,15 @@ app.all('/api/agent/*', async (c) => {
       await c.env.AGENT_STATE.delete(`agent:${agentId}:last_mention_id`);
     }
     return c.json({ ok: true, previous: prevId, current: sinceId ?? null });
+  }
+
+  // ── Debug: get raw mentions from Twitter ─────────────────────────────────────
+  if (pathname.endsWith('/debug-mentions') && method === 'GET') {
+    const ownUserId = await c.env.AGENT_STATE.get(`agent:${agentId}:own_user_id`);
+    if (!ownUserId) return c.json({ error: 'No own user ID cached' });
+    const sinceId = c.req.query('since') ?? undefined;
+    const response = await getMentions(c.env, agent, ownUserId, sinceId, 10);
+    return c.json(response);
   }
 
   return c.json({ error: 'Unknown agent action' }, 404);
