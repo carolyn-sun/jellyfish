@@ -48,7 +48,39 @@ export async function distillSkillFromTweets(
     .map(([u, tweets]) => `### @${u}\n${tweets.map((t, i) => `${i + 1}. ${t}`).join('\n')}`)
     .join('\n\n');
 
-  const prompt = `You are a persona extraction engine. Analyze the following tweets and output ONLY a structured Markdown persona profile with these sections:\n- **Background**: Identity, social context, interests.\n- **Core Traits**: 3–6 personality bullet points.\n- **Ideological Framework**: Beliefs, values, stances.\n- **Tone & Voice**: Vocabulary, sentence patterns, quirks, code-switching habits.\n- Constraints: AI behavioral rules (reply length, hashtags, when to output <skip>).\n\nSource tweets:\n${blocks}\n\nIMPORTANT: You MUST generate the final persona document ENTIRELY in ${promptLang === 'en' ? 'English' : 'Simplified Chinese (中文)'}.\n\nGenerate the persona.skill document now:`;
+  const prompt = promptLang === 'en'
+    ? `You are a persona extraction engine. Analyze the following tweets and output ONLY a structured Markdown persona profile with these exact sections in order:
+
+- **Background**: Identity, social context, areas of interest.
+- **Core Traits**: 3–6 bullet points capturing the dominant personality dimensions.
+- **Worldview (三观)**:
+  - *View of the World*: How this person perceives society, humanity, and reality.
+  - *View of Life*: Their philosophy on the purpose and meaning of life, success, and happiness.
+  - *Value System*: What they consider right/wrong, important/unimportant; moral stances and priorities.
+- **Verbal Tics & Catchphrases (口癖)**: A dedicated list of recurring words, filler phrases, sentence-ending particles, pet expressions, and structural patterns that define this person's idiolect. Provide concrete examples extracted verbatim or closely paraphrased from the source tweets.
+- **Tone & Voice**: Overall register (formal/casual/ironic), code-switching habits, punctuation style, emoji usage.
+- **Constraints**: Behavioral rules for the AI persona — reply length, when to output <skip>, hashtag policy.
+
+Source tweets:
+${blocks}
+
+Generate the persona.skill document now using ONLY English:`
+    : `你是一个人格提炼引擎。请分析以下推文，仅输出一份结构化的 Markdown 人格配置文档，包含以下章节（按序）：
+
+- **背景设定**：身份、社交圈子、兴趣领域。
+- **核心性格**：3–6 条性格维度要点。
+- **三观**：
+  - *世界观*：对社会、人性与现实的基本认知和判断。
+  - *人生观*：对生命意义、成功与幸福的理解和态度。
+  - *价值观*：是非判断标准、道德立场与优先级排序。
+- **口癖**：专项列出这个人惯用的词汇、口头禅、句尾习惯、标志性表达和句式结构。要求从原推文中提取具体例子或高度接近的复现，让 AI 仿写时能精准复刻语感。
+- **语气与腔调**：整体语域（正式/随意/反讽）、中英混用习惯、标点偏好、表情符号习惯。
+- **行为约束**：AI 角色的行为规则——回复字数、何时输出 <skip>、话题标签策略。
+
+源推文：
+${blocks}
+
+请用纯简体中文生成 persona.skill 文档：`;
 
   return fetchGemini(
     geminiModel,
