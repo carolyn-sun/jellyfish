@@ -160,7 +160,7 @@ export function isAgentPro(agent: AgentDbRecord): boolean {
   return expiresDay >= todayDay;
 }
 
-// ─── Process a single mention ─────────────────────────────────────────────────
+// \u2500\u2500\u2500 Process a single mention \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 async function processMention(
   env: Env,
   agent: AgentDbRecord,
@@ -173,109 +173,148 @@ async function processMention(
 ): Promise<boolean> {
   const originalTweetId = mention.edit_history_tweet_ids?.[0] ?? mention.id;
 
+  // \u2500\u2500 Guard 0: Already handled (replied or permanently skipped) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   if (await hasReplied(env, agent.id, originalTweetId)) {
-    console.log(`[agent ${agent.id}] Skipping mention ${originalTweetId} — already replied or locked`);
+    console.log(`[agent ${agent.id}] Mention ${originalTweetId} already handled \u2014 skipping`);
     return true;
   }
 
-  // ── Layer 0: Block by immutable Twitter user ID (most reliable) ─────────────
-  if (mention.author_id && botUserIds.has(mention.author_id)) {
-    console.log(`[agent ${agent.id}] Skipping mention ${mention.id} — author_id ${mention.author_id} is a known platform bot (ID-based loop prevention)`);
+  // \u2500\u2500 Guard 1: Concurrency lock \u2014 short TTL (2 min) so a crashed run never permanently
+  // blocks retries. Unlike markReplied (30 days), this lock expires on its own.
+  const inProgressKey = `agent:${agent.id}:in_progress:${originalTweetId}`;
+  const alreadyRunning = await env.AGENT_STATE.get(inProgressKey);
+  if (alreadyRunning) {
+    console.log(`[agent ${agent.id}] Mention ${originalTweetId} is already in-progress \u2014 skipping`);
+    return false; // don't advance cursor
+  }
+  await env.AGENT_STATE.put(inProgressKey, '1', { expirationTtl: 120 });
+
+  try {
+    return await _doProcessMention(
+      env, agent, mention, originalTweetId, ownUserId, mediaMap, userMap, botHandles, botUserIds,
+    );
+  } finally {
+    // Always release so errors/early-returns don't block future cron runs.
+    await env.AGENT_STATE.delete(inProgressKey);
+  }
+}
+
+// \u2500\u2500\u2500 Core mention handler (runs inside the in-progress lock) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+async function _doProcessMention(
+  env: Env,
+  agent: AgentDbRecord,
+  mention: XTweet,
+  originalTweetId: string,
+  ownUserId: string,
+  mediaMap: Map<string, XMedia>,
+  userMap: Map<string, string>,
+  botHandles: Set<string>,
+  botUserIds: Set<string>,
+): Promise<boolean> {
+
+  // Convenience wrapper: write the permanent 30-day "replied" marker and return true.
+  const permanentSkip = async (reason: string): Promise<true> => {
+    console.log(`[agent ${agent.id}] Permanently skipping mention ${mention.id} \u2014 ${reason}`);
     await markReplied(env, agent.id, originalTweetId);
     return true;
-  }
+  };
 
-  // ── Layer 1: Block by handle (fallback when KV user ID not yet cached) ───────
+  // \u2500\u2500 Bot filter: Layer 0 (user ID) and Layer 1 (handle) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  if (mention.author_id && botUserIds.has(mention.author_id)) {
+    return permanentSkip(`author_id ${mention.author_id} is a known platform bot`);
+  }
   const interactorUsername = mention.author_id ? userMap.get(mention.author_id) : undefined;
   if (interactorUsername && botHandles.has(interactorUsername.toLowerCase())) {
-    console.log(`[agent ${agent.id}] Skipping mention ${mention.id} — author @${interactorUsername} is a known platform bot (handle-based loop prevention)`);
-    await markReplied(env, agent.id, originalTweetId);
-    return true;
+    return permanentSkip(`@${interactorUsername} is a known platform bot`);
   }
 
-  // Pre-acquire lock to prevent concurrent runs
-  await markReplied(env, agent.id, originalTweetId);
+  console.log(`[agent ${agent.id}] Processing mention ${mention.id} (orig: ${originalTweetId}): "${mention.text.slice(0, 80)}..."`);
 
-  console.log(`[agent ${agent.id}] Processing mention ${mention.id} (orig: ${originalTweetId}): "${mention.text.slice(0, 60)}..."`);
-
-  const thread = await fetchThreadContext(
-    env,
-    agent,
-    mention,
-    mediaMap,
-    userMap,
-  );
-
+  // \u2500\u2500 Fetch conversation thread \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  const thread = await fetchThreadContext(env, agent, mention, mediaMap, userMap);
   const conversation = threadToConversation(thread, ownUserId, mediaMap, userMap);
-
-  // ── Layer 2: Limit how many times this agent has already replied in this thread
   const agentReplyCount = conversation.filter(t => t.role === 'agent').length;
+
+  // \u2500\u2500 Layer 2: Thread depth limit \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   if (agentReplyCount >= MAX_THREAD_DEPTH) {
-    console.log(`[agent ${agent.id}] Thread depth limit reached (${agentReplyCount}/${MAX_THREAD_DEPTH} replies) for mention ${mention.id} — bailing out to prevent loop`);
-    return true;
+    return permanentSkip(`thread depth limit (${agentReplyCount}/${MAX_THREAD_DEPTH})`);
   }
 
-  // ── Layer 3: Prevent replying to bystander comments in threaded conversations
-  // If the agent has already replied to this conversation, we need to be strict:
-  // we only want to reply if the user is replying *directly* to the agent's own tweet,
-  // or if they are replying to their own tweet (continuing their thought).
-  // Otherwise, it's likely a bystander commenting on the main thread, and Twitter
-  // just auto-injected the @agent tag. We silently skip to avoid intruding.
+  // \u2500\u2500 Layer 3: Bystander check \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // Twitter auto-injects @agent into every reply within a thread where the agent
+  // was mentioned, making bystander comments appear as new summons.
+  //
+  // We only suppress when the agent has ALREADY replied in this thread
+  // (agentReplyCount >= 1). When agentReplyCount === 0, any explicit @mention
+  // should be treated as a genuine first-contact \u2014 even if the user is replying
+  // to someone else's tweet rather than posting a standalone tweet.
   const isReply = mention.referenced_tweets?.some(r => r.type === 'replied_to') ?? false;
   if (isReply && agentReplyCount >= 1) {
+    // thread is ordered oldest\u2192newest; thread[-2] is the tweet that was directly
+    // replied to (the parent). If that parent is neither by the agent nor by the
+    // person doing the mentioning, it's a bystander sidethread.
     const directParent = thread.length >= 2 ? thread[thread.length - 2] : null;
-    const parentIsAgent = directParent?.author_id === ownUserId;
-    const parentIsMentionAuthor = directParent?.author_id === mention.author_id;
-    
-    if (!parentIsAgent && !parentIsMentionAuthor) {
-      console.log(`[agent ${agent.id}] Skipping mention ${mention.id} — agent has already replied in this conversation and the direct parent (${directParent?.id ?? 'none'}) is neither the agent nor the author (bystander prevention)`);
-      return true;
+    const parentIsAgent     = directParent?.author_id === ownUserId;
+    const parentIsMentioner = directParent?.author_id === mention.author_id;
+    if (!parentIsAgent && !parentIsMentioner) {
+      return permanentSkip(
+        `bystander sidethread \u2014 parent tweet ${directParent?.id ?? 'none'} ` +
+        `is not authored by the agent or the mentioner`
+      );
     }
   }
 
+  // \u2500\u2500 Ensure the mention itself is the final user turn \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   const last = conversation[conversation.length - 1];
   if (!last || last.role !== 'user') {
     const mediaNote = describeMedia(mention, mediaMap) ?? undefined;
-    conversation.push({ role: 'user', text: mention.text, authorId: mention.author_id, authorUsername: interactorUsername, mediaNote });
+    conversation.push({
+      role: 'user',
+      text: mention.text,
+      authorId: mention.author_id,
+      authorUsername: interactorUsername,
+      mediaNote,
+    });
   }
 
-  // Register to known fans for timeline stalking
-  if (interactorUsername) {
-    await addKnownFan(env, agent.id, interactorUsername);
-  }
-
-  // Absorb to memory if on whitelist — Pro only
+  // \u2500\u2500 Side-effects: fans + Pro memory \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  if (interactorUsername) await addKnownFan(env, agent.id, interactorUsername);
   if (isAgentPro(agent) && interactorUsername && mention.text && shouldAbsorbToMemory(agent, interactorUsername)) {
     await appendInteractionsMemory(env, agent.id, [{
       id: mention.id,
-      type: mention.referenced_tweets?.some(t => t.type === 'replied_to') ? 'reply' : 'mention',
+      type: isReply ? 'reply' : 'mention',
       authorUsername: interactorUsername,
       text: mention.text,
       createdAt: mention.created_at ?? new Date().toISOString(),
     }]);
   }
 
+  // \u2500\u2500 LLM decision \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   const replyText = await generateReply(env, agent, conversation, ownUserId);
 
   if (replyText.includes('<skip>') || replyText.trim() === '') {
-    console.log(`[agent ${agent.id}] LLM chose to silently skip mention ${mention.id}`);
-    await logActivity(env, agent.id, `skip:${originalTweetId}`, 'view', `已读不回了 @${interactorUsername} 的提及："${mention.text}"`, interactorUsername);
-    return true;
+    await logActivity(env, agent.id, `skip:${originalTweetId}`, 'view',
+      `\u5df2\u8bfb\u4e0d\u56de\u4e86 @${interactorUsername} \u7684\u63d0\u53ca\uff1a\u201c${mention.text}\u201d`, interactorUsername);
+    return permanentSkip('LLM chose to skip');
   }
 
-  console.log(`[agent ${agent.id}] Generated reply for ${mention.id}: "${replyText}"`);
-
+  // \u2500\u2500 Post reply & commit the permanent lock \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // markReplied is called AFTER a successful postTweet, not before.
+  // This means any API/network error causes the exception to propagate up to
+  // runMentionLoop which then unlocks the mention for retry.
+  console.log(`[agent ${agent.id}] Posting reply for mention ${mention.id}: "${replyText}"`);
   const posted = await postTweet(env, agent, {
     text: replyText,
-    reply: { in_reply_to_tweet_id: originalTweetId },
+    reply: { in_reply_to_tweet_id: mention.id },
   });
 
+  await markReplied(env, agent.id, originalTweetId);
   console.log(`[agent ${agent.id}] Reply posted: ${posted.data.id}`);
-  await logActivity(env, agent.id, posted.data.id, 'reply', `回复了 @${interactorUsername}："${replyText}"`, interactorUsername);
+  await logActivity(env, agent.id, posted.data.id, 'reply',
+    `\u56de\u590d\u4e86 @${interactorUsername}\uff1a\u201c${replyText}\u201d`, interactorUsername);
 
   return true;
 }
-
 // ─── Mention loop (every 1 min) ───────────────────────────────────────────────
 export async function runMentionLoop(env: Env, agent: AgentDbRecord): Promise<{ processed: number; error?: string }> {
   const ownUserId = await resolveOwnUserId(env, agent);
