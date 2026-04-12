@@ -85,6 +85,18 @@ export interface Env {
   BEARER_TOKEN?: string;
   /** Deploy passcode — gates who can create/deploy new agents (set via wrangler secret put DEPLOY_PASSCODE) */
   DEPLOY_PASSCODE?: string;
+  /**
+   * Subscription gate switch.
+   * "1" (default) — Pro features require a valid license key.
+   * "0"           — Subscriptions disabled; all agents are treated as Pro for free.
+   */
+  ENABLE_SUBSCRIPTIONS?: string;
+  /**
+   * xAI API Key for Grok models (set via wrangler secret put GROK_API_KEY).
+   * Required when GEMINI_MODEL is set to a grok-* model name.
+   * Obtain at https://console.x.ai/
+   */
+  GROK_API_KEY?: string;
 }
 
 // ─── X API types ───────────────────────────────────────────────────────────────

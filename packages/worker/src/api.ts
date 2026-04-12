@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Env, AgentDbRecord } from './types.ts';
-import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRefresh, runNightlyEvolution, runRefreshSourceNames } from './agent.ts';
+import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRefresh, runNightlyEvolution, runRefreshSourceNames, isAgentPro } from './agent.ts';
 import { getMe, getUserByUsername, getUserTweets, getMentions } from './twitter.ts';
 import { getLastMentionId, saveLastMentionId, getCachedOwnUserId, saveOwnUserId, getInteractionsMemory, getActivityLog, getSourceNames, hasReplied, markReplied } from './memory.ts';
 import { fetchSourceTweets, distillSkillFromTweets, genSample, refineSkill } from './builder.ts';
@@ -449,7 +449,7 @@ app.post('/api/distill', async (c) => {
     const gatewayConfig = { accountId: c.env.CF_ACCOUNT_ID, gateway: c.env.CF_GATEWAY_NAME, apiKey: c.env.CF_AIG_TOKEN };
     const tweetsByAccount = await fetchSourceTweets(sourceAccounts, bearerToken);
     if (Object.keys(tweetsByAccount).length === 0) return c.json({ error: 'No tweets fetched. Check accounts/token.' }, 400);
-    const skill = await distillSkillFromTweets(tweetsByAccount, geminiModel, promptLang || 'zh', gatewayConfig);
+    const skill = await distillSkillFromTweets(tweetsByAccount, geminiModel, promptLang || 'zh', gatewayConfig, c.env.GROK_API_KEY);
     const fetched: Record<string, number> = {};
     for (const [k, v] of Object.entries(tweetsByAccount)) fetched[k] = v.length;
     return c.json({ skill, fetched });
@@ -461,7 +461,7 @@ app.post('/api/tune/sample', async (c) => {
     const { skill } = await c.req.json() as any;
     const geminiModel = c.env.GEMINI_MODEL;
     const gatewayConfig = { accountId: c.env.CF_ACCOUNT_ID, gateway: c.env.CF_GATEWAY_NAME, apiKey: c.env.CF_AIG_TOKEN };
-    return c.json(await genSample(skill, geminiModel, gatewayConfig));
+    return c.json(await genSample(skill, geminiModel, gatewayConfig, c.env.GROK_API_KEY));
   } catch (err) { return c.json({ error: String(err) }, 500); }
 });
 
@@ -470,7 +470,7 @@ app.post('/api/tune/refine', async (c) => {
     const { skill, feedback } = await c.req.json() as any;
     const geminiModel = c.env.GEMINI_MODEL;
     const gatewayConfig = { accountId: c.env.CF_ACCOUNT_ID, gateway: c.env.CF_GATEWAY_NAME, apiKey: c.env.CF_AIG_TOKEN };
-    return c.json({ skill: await refineSkill(skill, feedback, geminiModel, gatewayConfig) });
+    return c.json({ skill: await refineSkill(skill, feedback, geminiModel, gatewayConfig, c.env.GROK_API_KEY) });
   } catch (err) { return c.json({ error: String(err) }, 500); }
 });
 
@@ -716,11 +716,9 @@ app.all('/api/agent/*', async (c) => {
   const agent = await loadAgent(c);
   if (!agent) return c.json({ error: 'Agent not found' }, 404);
 
-  // Pro check (pro_expires_at stored as day number since Unix epoch)
+  // Pro check — respects ENABLE_SUBSCRIPTIONS=0 (open mode)
   if (PRO_ROUTES.some(r => pathname.endsWith(r.replace('/api/agent', '')))) {
-    const proExpiresDay = (agent as any).pro_expires_at as number | null;
-    const todayDay = Math.floor(Date.now() / 86400000);
-    if (!proExpiresDay || proExpiresDay < todayDay) {
+    if (!isAgentPro(c.env, agent)) {
       return c.json({ ok: false, error: 'Pro license required / 需要有效的 Pro 授权码', pro_required: true }, 403);
     }
   }

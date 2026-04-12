@@ -54,7 +54,13 @@ GEMINI_MODEL = "gemini-3-flash-preview"
 X_CLIENT_ID = "V1lOUm1BcWQ5bHB3V3UyalhNbXM6MTpjaQ"
 CF_GATEWAY_NAME = "jellyfish-gateway"
 CF_ACCOUNT_ID = "1805cb9294c475500bf37b8428d32fc5"
-KO_FI_MINIMUM_AMOUNT = "9"
+
 # Auth App for dashboard identity verification (separate from Agent App to avoid rotating refresh tokens)
 # Set X_AUTH_CLIENT_ID here, then: wrangler secret put X_AUTH_CLIENT_SECRET
 X_AUTH_CLIENT_ID = "dDZQdjQzTDc1UmxDck5JRC0wSWM6MTpjaQ"
+# Subscription gate: set to "0" to disable Pro checks and grant all features for free.
+# Useful for self-hosted / open deployments where you don’t want a paywall.
+
+# If ENABLE_SUBSCRIPTIONS = "0", then KO_FI_MINIMUM_AMOUNT has no meaning.
+ENABLE_SUBSCRIPTIONS = "1"
+KO_FI_MINIMUM_AMOUNT = "9"

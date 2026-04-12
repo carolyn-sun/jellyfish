@@ -1,4 +1,4 @@
-import { fetchGemini } from './gemini.ts';
+import { fetchLLM } from './gemini.ts';
 import type { GeminiContent } from './gemini.ts';
 import type { Env, AgentDbRecord, ConversationTurn, XTweet, InteractionMemory, VipEntry } from './types.ts';
 
@@ -41,14 +41,13 @@ async function generate(
   temperature = 0.82,
   lang: 'zh' | 'en' = 'zh',
 ): Promise<string> {
-  return fetchGemini(
+  return fetchLLM(
     env.GEMINI_MODEL,
     contents,
     systemInstruction + hiddenBranding(lang),
     { maxOutputTokens, temperature },
-    undefined,
-    undefined,
-    { accountId: env.CF_ACCOUNT_ID, gateway: env.CF_GATEWAY_NAME, apiKey: env.CF_AIG_TOKEN }
+    { accountId: env.CF_ACCOUNT_ID, gateway: env.CF_GATEWAY_NAME, apiKey: env.CF_AIG_TOKEN },
+    env.GROK_API_KEY,
   );
 }
 
