@@ -503,9 +503,3 @@ npx wrangler d1 execute agent_saas --remote --file=schema.sql
 | `BEARER_TOKEN`             | ✅   | X 应用级 Bearer Token（用于 Wizard 蒸馏功能）             |
 | `GROK_API_KEY`             | 可选 | xAI API Key（使用 Grok 模型时必填，在 console.x.ai 生成） |
 | `KO_FI_VERIFICATION_TOKEN` | 可选 | Ko-Fi Webhook 验证 Token                                  |
-
----
-
-<p align="center">
-  Jellyfishes can fly.
-</p>
