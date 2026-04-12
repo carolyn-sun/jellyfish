@@ -532,6 +532,7 @@ export async function runTimelineEngagement(env: Env, agent: AgentDbRecord): Pro
 
   let likes = 0;
   let replies = 0;
+  const errors: string[] = [];
 
   // ── Layer 0+1: Skip if the tweet author is a known platform bot ─────────────
   // Layer 0: immutable user ID check; Layer 1: handle-based fallback
@@ -589,12 +590,14 @@ export async function runTimelineEngagement(env: Env, agent: AgentDbRecord): Pro
         replies++;
       }
     } catch (err) {
+      const errStr = String(err);
       console.error(`[agent ${agent.id}] Failed to engage with tweet ${item.tweet.id}:`, err);
+      errors.push(`tweet:${item.tweet.id} — ${errStr.slice(0, 200)}`);
     }
   }
 
   console.log(`[agent ${agent.id}] Timeline sweep done. Evaluated ${toEvaluate.length}, Likes ${likes}, Replies ${replies}.`);
-  return { evaluated: toEvaluate.length, likes, replies };
+  return { evaluated: toEvaluate.length, likes, replies, ...(errors.length > 0 ? { errors } : {}) };
 }
 
 // ─── Interaction Memory Refresh (Pro only) ─────────────────────────────────
