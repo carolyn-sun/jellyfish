@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { Env, AgentDbRecord } from './types.ts';
+import type { Env, AgentDbRecord, ConversationTurn } from './types.ts';
 import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRefresh, runNightlyEvolution, runRefreshSourceNames, isAgentPro } from './agent.ts';
 import { getMe, getUserByUsername, getUserTweets, getMentions } from './twitter.ts';
 import { getLastMentionId, saveLastMentionId, getCachedOwnUserId, saveOwnUserId, getInteractionsMemory, getActivityLog, getSourceNames, hasReplied, markReplied } from './memory.ts';
 import { fetchSourceTweets, distillSkillFromTweets, genSample, refineSkill } from './builder.ts';
+import { generateReply } from './llm.ts';
 import { listGeminiModels } from './gemini.ts';
 import { getValidAccessToken } from './auth.ts';
 import { runScheduled, getAllActiveAgents } from './scheduled.ts';
@@ -903,6 +904,58 @@ app.all('/api/agent/*', async (c) => {
   }
 
   return c.json({ error: 'Unknown agent action' }, 404);
+});
+
+// ── Local text-chat endpoint (bypasses Twitter entirely) ───────────────────
+// POST /api/agent/chat?id=<agentId>
+// Body: { message: string, history?: Array<{ role: 'user'|'agent', text: string }> }
+// Returns: { reply: string }
+// Protected by ADMIN_SECRET header when set; always allowed in local dev.
+app.post('/api/agent/chat', async (c) => {
+  try {
+    // Optional admin secret guard (skip in local dev where ADMIN_SECRET may be unset)
+    const adminSecret = c.env.ADMIN_SECRET;
+    if (adminSecret) {
+      const provided = c.req.header('X-Admin-Secret') ?? c.req.query('secret');
+      if (provided !== adminSecret) {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+    }
+
+    const agent = await loadAgent(c);
+    if (!c.req.query('id')) return c.json({ error: 'Missing agent ID' }, 400);
+    if (!agent) return c.json({ error: 'Agent not found' }, 404);
+
+    const body = await c.req.json() as {
+      message?: string;
+      history?: Array<{ role: 'user' | 'agent'; text: string }>;
+    };
+    const message = (body.message ?? '').trim();
+    if (!message) return c.json({ error: 'message is required' }, 400);
+
+    // Build conversation from optional history + new user message
+    const history: ConversationTurn[] = (body.history ?? []).map(h => ({
+      role: h.role === 'agent' ? 'agent' : 'user',
+      text: h.text,
+      authorId: h.role === 'user' ? 'local_user' : agent.id,
+      authorUsername: h.role === 'user' ? 'local_user' : (agent.agent_handle || 'agent'),
+    }));
+
+    // Append the new user message
+    history.push({
+      role: 'user',
+      text: message,
+      authorId: 'local_user',
+      authorUsername: 'local_user',
+    });
+
+    // Use agent's own ID as ownUserId (so history 'agent' turns are mapped to 'model')
+    const reply = await generateReply(c.env, agent, history, agent.id);
+
+    return c.json({ reply });
+  } catch (err) {
+    return c.json({ error: String(err) }, 500);
+  }
 });
 
 // ── 404 catch-all ──────────────────────────────────────────────────────────
