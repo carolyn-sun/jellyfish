@@ -76,7 +76,7 @@ function buildMentionOverride(agent: AgentDbRecord, vip: VipEntry | undefined, l
   const replyPct = Math.round(vip.replyProbability * 100);
   const personaLabel = vip.persona ?? (lang === 'zh' ? '重点关注' : 'Priority Contact');
   if (lang === 'zh') {
-    return `\n\n【⭐ VIP 指令 | @${vip.username} | ${personaLabel}】\n当前搭话者是你的重点关注对象！请以"${personaLabel}"模式热情回应，回复概率提升至 ${replyPct}%，适当放宽字数限制。`;
+    return `\n\n【⭐ VIP 指令 | @${vip.username} | ${personaLabel}】\n当前搭话者是你的重点关注对象。请以"${personaLabel}"模式热情回应，回复概率提升至 ${replyPct}%，适当放宽字数限制。`;
   }
   return `\n\n[⭐ VIP Directive | @${vip.username} | ${personaLabel}]\nThis person is one of your priority contacts! Respond warmly in "${personaLabel}" mode. Reply probability raised to ${replyPct}%. You may be slightly more verbose than usual.`;
 }
@@ -99,7 +99,7 @@ function buildTimelineOverride(agent: AgentDbRecord, vip: VipEntry | undefined, 
   const replyPct = Math.round(vip.replyProbability * 100);
   const personaLabel = vip.persona ?? (lang === 'zh' ? '重点关注' : 'Priority Contact');
   if (lang === 'zh') {
-    return `\n\n【⭐ VIP 时间线 | @${vip.username} | ${personaLabel}】\n注意！发推的人是你的重点关注对象！以"${personaLabel}"模式互动，回复+点赞概率提升至 ${replyPct}%，适当放宽字数限制。`;
+    return `\n\n【⭐ VIP 时间线 | @${vip.username} | ${personaLabel}】\n注意。发推的人是你的重点关注对象。以"${personaLabel}"模式互动，回复+点赞概率提升至 ${replyPct}%，适当放宽字数限制。`;
   }
   return `\n\n[⭐ VIP Timeline | @${vip.username} | ${personaLabel}]\nAttention! The person who posted this is one of your priority contacts! Interact in "${personaLabel}" mode. Reply + like probability raised to ${replyPct}%. Slightly relaxed word limit.`;
 }
