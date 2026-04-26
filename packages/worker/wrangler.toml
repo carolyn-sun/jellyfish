@@ -44,7 +44,6 @@ database_id = "13e065a3-b527-4613-8e8f-1ec7e1933d3f"
 # CF_GATEWAY_NAME        — Cloudflare AI Gateway Name (e.g. "jellyfish-gateway")
 # CF_AIG_TOKEN           — Cloudflare AI Gateway Token (generated in Gateway → Auth)
 # GEMINI_MODEL           — (optional) Default model, e.g. gemini-3.1-pro-preview
-# KO_FI_VERIFICATION_TOKEN — Ko-Fi Webhook verification token (Ko-Fi → Webhooks settings)
 # BEARER_TOKEN           — Twitter App-only Bearer Token, used by /api/distill (no user OAuth needed)
 # DEPLOY_PASSCODE        — Gates /wizard (create+deploy flow); issue to paying users only
 
@@ -61,6 +60,4 @@ X_AUTH_CLIENT_ID = "dDZQdjQzTDc1UmxDck5JRC0wSWM6MTpjaQ"
 # Subscription gate: set to "0" to disable Pro checks and grant all features for free.
 # Useful for self-hosted / open deployments where you don’t want a paywall.
 
-# If ENABLE_SUBSCRIPTIONS = "0", then KO_FI_MINIMUM_AMOUNT has no meaning.
 ENABLE_SUBSCRIPTIONS = "1"
-KO_FI_MINIMUM_AMOUNT = "9"

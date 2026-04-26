@@ -179,13 +179,13 @@
       <h2>👀 <span class="lang-zh">刷时间线</span><span class="lang-en">Browse Timeline</span></h2>
       <p><span class="lang-zh">扫描粉丝/特别用户列表，随机点赞或回复 2 条推文</span><span class="lang-en">Scan fans/special users, randomly like or reply to 2 tweets</span></p>
       <p style="font-size:.8rem;color:var(--text-muted);margin-top:4px">🕒 <span class="lang-zh">自动执行：<b>每小时整点</b>一次</span><span class="lang-en">Auto-runs: once per hour on the hour</span></p>
-      <p style="font-size:.75rem;color:#a78bfa;margin-top:6px">⭐ <span class="lang-zh">手动触发为 Pro 功能</span><span class="lang-en">Manual trigger is a Pro feature</span></p>
+
     </div>
     <div class="card">
       <h2>💬 <span class="lang-zh">自发推文</span><span class="lang-en">Spontaneous Tweet</span></h2>
       <p><span class="lang-zh">随机生成并发布一条自发推文</span><span class="lang-en">Generate and post a spontaneous tweet</span></p>
       <p style="font-size:.8rem;color:var(--text-muted);margin-top:4px">🕒 <span class="lang-zh">自动触发：每日 <b>UTC 12:30</b>，冷却固定 <b>3 天</b></span><span class="lang-en">Auto-triggers daily at <b>UTC 12:30</b>; <b>3-day</b> cooldown</span></p>
-      <p style="font-size:.75rem;color:#a78bfa;margin-top:6px">⭐ <span class="lang-zh">无视冷却发推为 Pro 功能</span><span class="lang-en">Bypassing cooldown is a Pro feature</span></p>
+
     </div>
     <div class="card">
       <h2>📊 <span class="lang-zh">Agent 状态</span><span class="lang-en">Agent Status</span></h2>
@@ -195,62 +195,29 @@
     </div>
   </div>
 
-  <!-- Pro Features -->
-  <div class="section-title" style="background:linear-gradient(90deg,#7c3aed22,transparent);border-left:3px solid #7c3aed;padding-left:12px">
-    ⭐ <span class="lang-zh">Pro 功能</span><span class="lang-en">Pro Features</span>
-  </div>
-  <div class="card wide" style="border-color:rgba(139,92,246,0.35);margin-bottom:20px;padding-bottom:20px">
-    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:16px">
-      <div style="flex:1;min-width:220px">
-        <h2 style="color:#a78bfa;margin-bottom:6px">🔑 <span class="lang-zh">授权码</span><span class="lang-en">License Key</span></h2>
-        <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px">
-          <span class="lang-zh">输入有效的授权码以解锁 Pro 功能（支持按月订阅）。购买后会将授权码发送到你的邮箱。</span>
-          <span class="lang-en">Enter a valid license key to unlock Pro features (monthly subscription). The key will be emailed after purchase.</span>
-        </p>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input id="pro-key-input" type="text" placeholder="JLYF-XXXX-XXXX-XXXX" style="margin:0;flex:1;font-family:monospace;letter-spacing:.05em"/>
-          <button class="btn btn-ghost" style="border-color:rgba(139,92,246,0.5);color:#a78bfa;white-space:nowrap" onclick="activateProKey()">
-            <span class="lang-zh">激活</span><span class="lang-en">Activate</span>
-          </button>
-        </div>
-        <div id="pro-key-status" style="font-size:.78rem;margin-top:6px">
-          <span style="color:var(--text-muted)">🔒 <span class="lang-zh">加载中…</span><span class="lang-en">Loading…</span></span>
-        </div>
-        <div style="margin-top:14px">
-          <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-          <script type='text/javascript'>kofiwidget2.init('Support me on Ko-fi', '#6d28d9', 'K3K51XDNXI');kofiwidget2.draw();</script>
-        </div>
+  <div class="card-grid" style="gap:10px">
+    <div class="card" style="border-color:rgba(139,92,246,0.25)">
+      <h2 style="font-size:.95rem">👀 <span class="lang-zh">刷时间线</span><span class="lang-en">Browse Timeline</span></h2>
+      <p style="font-size:.78rem"><span class="lang-zh">立即扫描特别用户列表，随机点赞或回复</span><span class="lang-en">Scan special users, randomly like or reply now</span></p>
+      <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="run(event,getApiUrl('/api/agent/trigger-timeline'));return false"><span class="lang-zh">立即执行</span><span class="lang-en">Run Now</span></a>
+    </div>
+    <div class="card" style="border-color:rgba(139,92,246,0.25)">
+      <h2 style="font-size:.95rem">💬 <span class="lang-zh">无视冷却发推</span><span class="lang-en">Force Tweet</span></h2>
+      <p style="font-size:.78rem"><span class="lang-zh">跳过 3 天冷却限制，立即发布一条自发推文</span><span class="lang-en">Skip the 3-day cooldown and post a tweet now</span></p>
+      <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="run(event,getApiUrl('/api/agent/spontaneous')+'&force=true');return false"><span class="lang-zh">立即发布</span><span class="lang-en">Post Now</span></a>
+    </div>
+    <div class="card" style="border-color:rgba(139,92,246,0.25)">
+      <h2 style="font-size:.95rem">🧠 <span class="lang-zh">互动记忆</span><span class="lang-en">Interaction Memory</span></h2>
+      <p style="font-size:.78rem"><span class="lang-zh">系统每 6 小时自动拉取互动记忆。</span><span class="lang-en">Memory is auto-refreshed every 6h.</span></p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <a class="btn btn-ghost" id="view-memory-btn" href="#" target="_blank" style="font-size:.85rem;height:36px;padding:0 14px"><span class="lang-zh">📖 查看记忆</span><span class="lang-en">📖 View Memory</span></a>
+        <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa;font-size:.85rem;height:36px;padding:0 14px" href="#" onclick="run(event,getApiUrl('/api/agent/refresh-memory'));return false"><span class="lang-zh">⚡ 立即拉取</span><span class="lang-en">⚡ Refresh Now</span></a>
       </div>
     </div>
-    <hr style="border:none;border-top:1px solid rgba(139,92,246,0.12);margin:0 0 14px">
-    <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:12px">
-      <span class="lang-zh">以下功能需要有效授权码才可使用</span>
-      <span class="lang-en">The following actions require an active Pro license</span>
-    </p>
-    <div class="card-grid" style="gap:10px">
-      <div class="card" style="border-color:rgba(139,92,246,0.25)">
-        <h2 style="font-size:.95rem">👀 <span class="lang-zh">刷时间线</span><span class="lang-en">Browse Timeline</span></h2>
-        <p style="font-size:.78rem"><span class="lang-zh">立即扫描特别用户列表，随机点赞或回复</span><span class="lang-en">Scan special users, randomly like or reply now</span></p>
-        <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="runPro(event,getApiUrl('/api/agent/trigger-timeline'));return false"><span class="lang-zh">立即执行</span><span class="lang-en">Run Now</span></a>
-      </div>
-      <div class="card" style="border-color:rgba(139,92,246,0.25)">
-        <h2 style="font-size:.95rem">💬 <span class="lang-zh">无视冷却发推</span><span class="lang-en">Force Tweet</span></h2>
-        <p style="font-size:.78rem"><span class="lang-zh">跳过 3 天冷却限制，立即发布一条自发推文</span><span class="lang-en">Skip the 3-day cooldown and post a tweet now</span></p>
-        <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="runPro(event,getApiUrl('/api/agent/spontaneous')+'&force=true');return false"><span class="lang-zh">立即发布</span><span class="lang-en">Post Now</span></a>
-      </div>
-      <div class="card" style="border-color:rgba(139,92,246,0.25)">
-        <h2 style="font-size:.95rem">🧠 <span class="lang-zh">互动记忆 <span style="font-size:.7rem;background:rgba(139,92,246,0.2);color:#a78bfa;border-radius:4px;padding:1px 5px;margin-left:4px">Pro</span></span><span class="lang-en">Interaction Memory <span style="font-size:.7rem;background:rgba(139,92,246,0.2);color:#a78bfa;border-radius:4px;padding:1px 5px;margin-left:4px">Pro</span></span></h2>
-        <p style="font-size:.78rem"><span class="lang-zh">Pro 有效期内系统每 6 小时自动拉取互动记忆；无授权码则<b>不记忆、不演化</b>。</span><span class="lang-en">With Pro, memory is auto-refreshed every 6h. Without a license, <b>no memory is recorded</b>.</span></p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-          <a class="btn btn-ghost" id="view-memory-btn" href="#" target="_blank" style="font-size:.85rem;height:36px;padding:0 14px"><span class="lang-zh">📖 查看记忆</span><span class="lang-en">📖 View Memory</span></a>
-          <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa;font-size:.85rem;height:36px;padding:0 14px" href="#" onclick="runPro(event,getApiUrl('/api/agent/refresh-memory'));return false"><span class="lang-zh">⚡ 立即拉取</span><span class="lang-en">⚡ Refresh Now</span></a>
-        </div>
-      </div>
-      <div class="card" style="border-color:rgba(139,92,246,0.25)">
-        <h2 style="font-size:.95rem">🧬 <span class="lang-zh">人格演化 <span style="font-size:.7rem;background:rgba(139,92,246,0.2);color:#a78bfa;border-radius:4px;padding:1px 5px;margin-left:4px">Pro</span></span><span class="lang-en">Personality Evolution <span style="font-size:.7rem;background:rgba(139,92,246,0.2);color:#a78bfa;border-radius:4px;padding:1px 5px;margin-left:4px">Pro</span></span></h2>
-        <p style="font-size:.78rem"><span class="lang-zh">Pro 有效期内每日 UTC 03:00 自动吸收记忆重塑人格；无授权码则<b>永远不会演化</b>。</span><span class="lang-en">With Pro, persona evolves nightly at UTC 03:00. Without a license, <b>evolution never runs</b>.</span></p>
-        <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="runPro(event,getApiUrl('/api/agent/evolve'));return false"><span class="lang-zh">立即重塑</span><span class="lang-en">Evolve Now</span></a>
-      </div>
+    <div class="card" style="border-color:rgba(139,92,246,0.25)">
+      <h2 style="font-size:.95rem">🧬 <span class="lang-zh">人格演化</span><span class="lang-en">Personality Evolution</span></h2>
+      <p style="font-size:.78rem"><span class="lang-zh">每日 UTC 03:00 自动吸收记忆重塑人格。</span><span class="lang-en">Persona evolves nightly at UTC 03:00.</span></p>
+      <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="run(event,getApiUrl('/api/agent/evolve'));return false"><span class="lang-zh">立即重塑</span><span class="lang-en">Evolve Now</span></a>
     </div>
   </div>
 
@@ -730,17 +697,6 @@
       document.getElementById('cfg-reply').value = _agentData.reply_pct ?? 0.2;
       document.getElementById('cfg-like').value = _agentData.like_pct ?? 0.8;
 
-      // Fill pro status
-      var proExp = _agentData.pro_expires_at || 0;
-      var proSt = document.getElementById('pro-key-status');
-      if (proExp > Date.now()) {
-        sessionStorage.setItem('pro_expires_at', String(proExp));
-        proSt.innerHTML = '<span style="color:#86efac">✅ Pro 已激活，有效至 <b>' + (function(ts) { var d = new Date(ts); return (!ts || ts <= 0 || isNaN(d.getTime()) || ts > 3e12) ? '<span class="lang-zh">永远</span><span class="lang-en">Forever</span>' : d.toLocaleDateString('zh-CN'); })(proExp) + '</b></span>';
-      } else {
-        sessionStorage.removeItem('pro_expires_at');
-        proSt.innerHTML = '<span style="color:var(--text-muted)">🔒 <span class="lang-zh">未激活</span><span class="lang-en">Not activated</span></span>';
-      }
-
       // Fill VIP list
       _vipList = Array.isArray(_agentData.vip_list) ? _agentData.vip_list : [];
       renderVipTable();
@@ -808,38 +764,7 @@
     if (btn) { btn.classList.remove('btn-loading'); btn.style.paddingRight = ''; }
   }
 
-  async function runPro(event, path) {
-    var proExp = parseInt(sessionStorage.getItem('pro_expires_at') || '0');
-    if (!proExp || proExp < Date.now()) {
-      alert(document.body.classList.contains('en-mode')
-        ? '⭐ Pro license required. Please activate your license key above.'
-        : '⭐ 需要 Pro 授权码，请先在上方激活。');
-      return;
-    }
-    return run(event, path);
-  }
 
-  // ── Pro key activation ────────────────────────────────────────────────────
-  async function activateProKey() {
-    var key = document.getElementById('pro-key-input').value.trim().toUpperCase();
-    var st = document.getElementById('pro-key-status');
-    var isEn = document.body.classList.contains('en-mode');
-    if (!key) { st.textContent = '⚠️ ' + (isEn ? 'Enter a key' : '请输入授权码'); st.style.color = '#fbbf24'; return; }
-    st.textContent = isEn ? '⏳ Activating...' : '⏳ 激活中...'; st.style.color = '#94a3b8';
-    try {
-      var r = await fetch('/api/agent/activate-license', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ agentId: _agentId, key })
-      });
-      var d = await r.json();
-      if (d.ok) {
-        sessionStorage.setItem('pro_expires_at', String(d.expires_at));
-        st.innerHTML = '<span style="color:#86efac">✅ Pro 已激活，有效至 <b>' + (function(ts) { var d = new Date(ts); return (!ts || ts <= 0 || isNaN(d.getTime()) || ts > 3e12) ? '<span class="lang-zh">永远</span><span class="lang-en">Forever</span>' : d.toLocaleDateString('zh-CN'); })(d.expires_at) + '</b></span>';
-      } else {
-        st.textContent = '❌ ' + d.error; st.style.color = '#f87171';
-      }
-    } catch(e) { st.textContent = '❌ ' + e.message; st.style.color = '#f87171'; }
-  }
 
   // ── Save skill ────────────────────────────────────────────────────────────
   async function saveSkill() {
@@ -1126,16 +1051,5 @@
       btn.innerHTML = '🗑️ <span>' + (isEn ? 'Delete This Agent' : '删除此 Agent') + '</span>';
     }
   }
-</script>
-
-<script is:inline src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
-<script is:inline>
-  kofiWidgetOverlay.draw('carolynsun', {
-    'type': 'floating-chat',
-    'floating-chat.donateButton.text': 'Support me',
-    'floating-chat.donateButton.background-color': '#323842',
-    'floating-chat.donateButton.text-color': '#fff'
-  });
-</script>
 </body>
 </html>

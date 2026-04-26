@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Env, AgentDbRecord, ConversationTurn } from './types.ts';
-import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRefresh, runNightlyEvolution, runRefreshSourceNames, isAgentPro } from './agent.ts';
+import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRefresh, runNightlyEvolution, runRefreshSourceNames } from './agent.ts';
 import { getMe, getUserByUsername, getUserTweets, getMentions } from './twitter.ts';
 import { getLastMentionId, saveLastMentionId, getCachedOwnUserId, saveOwnUserId, getInteractionsMemory, getActivityLog, getSourceNames, hasReplied, markReplied } from './memory.ts';
 import { fetchSourceTweets, distillSkillFromTweets, genSample, refineSkill } from './builder.ts';
@@ -574,80 +574,7 @@ app.get('/api/agent/find-by-handle', async (c) => {
   return c.json({ agentId: row.id, name: row.agent_name, handle: row.agent_handle });
 });
 
-// ── Ko-Fi Webhook ──────────────────────────────────────────────────────────
-app.post('/api/kofi-webhook', async (c) => {
-  try {
-    const formText = await c.req.text();
-    const params = new URLSearchParams(formText);
-    const raw = params.get('data');
-    if (!raw) return c.text('Missing data', 400);
-    const data = JSON.parse(raw) as any;
 
-    const expectedToken = c.env.KO_FI_VERIFICATION_TOKEN;
-    if (expectedToken && data.verification_token !== expectedToken) {
-      console.warn('[kofi] Invalid verification token');
-      return c.text('Unauthorized', 401);
-    }
-
-    if (data.type !== 'Donation' && data.type !== 'Shop Order' && data.type !== 'Subscription') {
-      return c.text('OK');
-    }
-
-    // Minimum amount check — configurable via KO_FI_MINIMUM_AMOUNT in wrangler.toml (default: 9)
-    const minAmount = parseFloat(c.env.KO_FI_MINIMUM_AMOUNT || '9');
-    const paidAmount = parseFloat(data.amount || '0');
-    if (isNaN(paidAmount) || paidAmount < minAmount) { // #10: guard NaN bypass
-      console.log(`[kofi] Skipping license: amount ${data.amount} < minimum ${minAmount} for ${data.email}`);
-      return c.text('OK');
-    }
-
-    const seg = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-    const licenseKey = `JLYF-${seg()}-${seg()}-${seg()}`;
-    // Duration scales with amount: $9 = 30 days, $18 = 60 days, etc.
-    const months = Math.max(1, Math.floor(paidAmount / minAmount));
-    const expiresAt = Date.now() + months * 30 * 24 * 60 * 60 * 1000;
-
-    await c.env.AGENT_STATE.put(
-      `license:${licenseKey}`,
-      JSON.stringify({ key: licenseKey, email: data.email || '', kofi_name: data.from_name || '', amount: data.amount || '', expires_at: expiresAt, created_at: Date.now(), type: data.type, months }),
-      { expirationTtl: (months * 31 + 1) * 24 * 60 * 60 }
-    );
-
-    console.log(`[kofi] License generated for ${data.email}: ${licenseKey} (${paidAmount} → ${months} month(s))`);
-    return c.text('OK');
-  } catch (err) {
-    console.error('[kofi] Webhook error:', err);
-    return c.text('OK'); // Always 200 to Ko-Fi
-  }
-});
-
-// ── License Activation ─────────────────────────────────────────────────────
-app.post('/api/agent/activate-license', async (c) => {
-  try {
-    const { agentId, key } = await c.req.json() as any;
-    if (!agentId || !key) return c.json({ ok: false, error: 'Missing params' }, 400);
-    const licenseKey = key.trim().toUpperCase();
-    const raw = await c.env.AGENT_STATE.get(`license:${licenseKey}`);
-    if (!raw) return c.json({ ok: false, error: '授权码无效或已过期 / Invalid or expired license key' }, 404);
-    const license = JSON.parse(raw) as { expires_at: number; used_by_agent_id?: string; months?: number };
-    if (license.expires_at < Date.now()) return c.json({ ok: false, error: '授权码已过期 / License key expired' }, 403);
-    // Single-use enforcement (#4)
-    if (license.used_by_agent_id && license.used_by_agent_id !== agentId) {
-      return c.json({ ok: false, error: '授权码已被其他 Agent 使用 / License key already used by another agent' }, 403);
-    }
-    // Store as days since Unix epoch — always fits in SQLite INTEGER (int32)
-    // e.g. today ≈ 20553 days, 30 days later = 20583, permanent = 9999999
-    const MS_PER_DAY = 86400000;
-    const expiresDay = Math.min(Math.floor(license.expires_at / MS_PER_DAY), 9999999);
-    await c.env.DB.prepare('UPDATE agents SET pro_expires_at = ? WHERE id = ?').bind(expiresDay, agentId).run();
-    // Mark as used
-    license.used_by_agent_id = agentId;
-    const ttlDays = Math.max(1, expiresDay - Math.floor(Date.now() / MS_PER_DAY) + 1);
-    await c.env.AGENT_STATE.put(`license:${licenseKey}`, JSON.stringify(license), { expirationTtl: ttlDays * 86400 });
-    console.log(`[license] Activated ${licenseKey} for agent ${agentId}, expires day ${expiresDay}`);
-    return c.json({ ok: true, expires_at: expiresDay * MS_PER_DAY }); // return ms for frontend
-  } catch (err) { return c.json({ ok: false, error: String(err) }, 500); }
-});
 
 // ── Agent detail (for dashboard client-side rendering) ─────────────────────
 app.get('/api/agent/detail', async (c) => {
@@ -666,7 +593,6 @@ app.get('/api/agent/detail', async (c) => {
     auto_evo: agent.auto_evo,
     vip_list: Array.isArray(agent.vip_list) ? agent.vip_list : JSON.parse((agent.vip_list as string) || '[]'),
     mem_whitelist: agent.mem_whitelist,
-    pro_expires_at: ((agent as any).pro_expires_at ?? 0) * 86400000, // convert days → ms for frontend
     status: agent.status,
   });
 });
@@ -706,8 +632,7 @@ app.get('/api/agent/source-names', async (c) => {
   return c.json(await getSourceNames(c.env, agentId));
 });
 
-// ── Agent admin actions (require agent lookup + optional Pro check) ─────────
-const PRO_ROUTES = ['/api/agent/refresh-memory', '/api/agent/evolve', '/api/agent/trigger-timeline', '/api/agent/spontaneous'];
+// ── Agent admin actions ─────────
 
 app.all('/api/agent/*', async (c) => {
   const pathname = new URL(c.req.url).pathname.replace(/\/$/, '');
@@ -716,13 +641,6 @@ app.all('/api/agent/*', async (c) => {
 
   const agent = await loadAgent(c);
   if (!agent) return c.json({ error: 'Agent not found' }, 404);
-
-  // Pro check — respects ENABLE_SUBSCRIPTIONS=0 (open mode)
-  if (PRO_ROUTES.some(r => pathname.endsWith(r.replace('/api/agent', '')))) {
-    if (!isAgentPro(c.env, agent)) {
-      return c.json({ ok: false, error: 'Pro license required / 需要有效的 Pro 授权码', pro_required: true }, 403);
-    }
-  }
 
   const method = c.req.method;
 

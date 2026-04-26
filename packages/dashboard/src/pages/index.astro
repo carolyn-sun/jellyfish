@@ -147,18 +147,7 @@ import Layout from "../layouts/Layout.astro";
       line-height: 1.55;
       margin: 0;
     }
-    .pro-badge {
-      display: inline-block;
-      font-size: 0.65rem;
-      font-weight: 700;
-      padding: 1px 6px;
-      border-radius: 4px;
-      background: rgba(139, 92, 246, 0.2);
-      color: #a78bfa;
-      margin-left: 5px;
-      vertical-align: middle;
-      letter-spacing: 0.03em;
-    }
+
 
     /* ── How it works ───────────────────────────────────────── */
     .steps-list {
@@ -377,7 +366,7 @@ import Layout from "../layouts/Layout.astro";
           <span class="lang-zh">互动记忆</span><span class="lang-en"
             >Interaction Memory</span
           >
-          <span class="pro-badge">Pro</span>
+
         </h3>
         <p>
           <span class="lang-zh"
@@ -394,7 +383,7 @@ import Layout from "../layouts/Layout.astro";
           <span class="lang-zh">人格演化</span><span class="lang-en"
             >Personality Evolution</span
           >
-          <span class="pro-badge">Pro</span>
+
         </h3>
         <p>
           <span class="lang-zh"
@@ -548,9 +537,9 @@ import Layout from "../layouts/Layout.astro";
     </h2>
     <p>
       <span class="lang-zh"
-        >免费部署，Pro 功能按需解锁。全程浏览器内完成，30 分钟上线。</span
+        >免费部署，全程浏览器内完成，30 分钟上线。</span
       ><span class="lang-en"
-        >Free to deploy. Pro features unlocked on demand. Ship in 30 minutes
+        >Free to deploy. Ship in 30 minutes
         from your browser.</span
       >
     </p>
@@ -656,15 +645,5 @@ import Layout from "../layouts/Layout.astro";
     document.dispatchEvent(new Event("lang-changed"));
   </script>
 
-  <script
-    is:inline
-    src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
-  <script is:inline>
-    kofiWidgetOverlay.draw("carolynsun", {
-      type: "floating-chat",
-      "floating-chat.donateButton.text": "Support me",
-      "floating-chat.donateButton.background-color": "#323842",
-      "floating-chat.donateButton.text-color": "#fff",
-    });
-  </script>
+
 </Layout>

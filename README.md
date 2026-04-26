@@ -14,8 +14,8 @@ Jellyfish 是一个开源的 Multi-Agent 框架，让你可以将任何 X 账号
 | **自动回复**   | 每分钟轮询 @提及，以人格驱动的 LLM 生成回复或选择跳过                   |
 | **时间线互动** | 每小时扫描关注者/VIP 用户的推文，自主点赞或回复                         |
 | **自发发推**   | 每天定时触发，以人格风格主动发一条原创推文                              |
-| **记忆系统**   | Pro 模式：记录互动历史，每 6 小时合并记忆                               |
-| **人格进化**   | Pro 模式：每晚 UTC 03:00 根据近期记忆自动演化 Skill 文档                |
+| **记忆系统**   | 记录互动历史，每 6 小时合并记忆                               |
+| **人格进化**   | 每晚 UTC 03:00 根据近期记忆自动演化 Skill 文档                |
 | **多 Agent**   | 单一 Worker 实例同时托管多个独立 Agent，全部走同一个 cron               |
 | **Zero-infra** | 完全运行在 Cloudflare Workers + KV + D1，无需服务器                     |
 
@@ -289,8 +289,8 @@ Deploy → 生成 Dashboard 链接
 | **点赞概率**     | 时间线扫描时点赞的概率（0–1）                    | `0.8`   |
 | **自发发推间隔** | 两次自发发推之间的最小冷却天数                   | `3`     |
 | **VIP 用户列表** | 对特定用户启用自定义回复概率或人格覆盖           | —       |
-| **记忆白名单**   | 哪些用户的互动会被记入 Agent 的长期记忆（Pro）   | `[]`    |
-| **自动人格进化** | 是否允许 Agent 每晚根据记忆自动更新 Skill（Pro） | `false` |
+| **记忆白名单**   | 哪些用户的互动会被记入 Agent 的长期记忆   | `[]`    |
+| **自动人格进化** | 是否允许 Agent 每晚根据记忆自动更新 Skill | `false` |
 
 ---
 
@@ -304,8 +304,8 @@ Deploy → 生成 Dashboard 链接
 - **手动触发**：立即触发一次提及扫描、时间线互动或自发发推
 - **Skill 编辑器**：在线编辑 Agent 的人格 Skill 文档
 - **行为参数调整**：修改回复/点赞概率、冷却天数
-- **记忆查看**（Pro）：查看当前积累的互动记忆碎片
-- **手动进化**（Pro）：立即触发一次人格进化
+- **记忆查看**：查看当前积累的互动记忆碎片
+- **手动进化**：立即触发一次人格进化
 - **Token 健康检查**：检测 OAuth Token 是否有效，失效时一键重新授权
 
 ---
@@ -319,8 +319,8 @@ Worker 每分钟触发一次 cron，内部按当前 UTC 时间路由到不同的
 | 提及轮询       | 每分钟           | 检查新 @提及，每次运行最多处理 5 条，4 轮/分钟 |
 | 时间线互动     | 每整点           | 扫描 VIP/粉丝推文，最多点赞/回复 2 条          |
 | 自发发推       | UTC 12:30        | 主动发一条原创推文（受冷却期控制）             |
-| 记忆合并       | UTC 0/6/12/18:00 | 将近期互动写入长期记忆（Pro）                  |
-| 人格进化       | UTC 03:00        | 根据记忆自动更新 Skill 文档（Pro）             |
+| 记忆合并       | UTC 0/6/12/18:00 | 将近期互动写入长期记忆                  |
+| 人格进化       | UTC 03:00        | 根据记忆自动更新 Skill 文档             |
 | 源账号名称刷新 | UTC 02:00        | 更新源账号的显示名缓存                         |
 
 ---
@@ -352,15 +352,14 @@ Worker 每分钟触发一次 cron，内部按当前 UTC 时间路由到不同的
 | ------ | --------------------------------- | ----------------------------- |
 | `GET`  | `/api/agent/detail?id=`           | 获取 Agent 配置（不含 token） |
 | `GET`  | `/api/agent/activity?id=`         | 获取活动日志                  |
-| `GET`  | `/api/agent/memory?id=`           | 获取互动记忆（Pro）           |
+| `GET`  | `/api/agent/memory?id=`           | 获取互动记忆           |
 | `POST` | `/api/agent/trigger?id=`          | 手动触发提及扫描              |
 | `POST` | `/api/agent/spontaneous?id=`      | 手动触发自发发推              |
-| `POST` | `/api/agent/trigger-timeline?id=` | 手动触发时间线互动（Pro）     |
-| `POST` | `/api/agent/refresh-memory?id=`   | 手动触发记忆合并（Pro）       |
-| `POST` | `/api/agent/evolve?id=`           | 手动触发人格进化（Pro）       |
+| `POST` | `/api/agent/trigger-timeline?id=` | 手动触发时间线互动     |
+| `POST` | `/api/agent/refresh-memory?id=`   | 手动触发记忆合并       |
+| `POST` | `/api/agent/evolve?id=`           | 手动触发人格进化       |
 | `POST` | `/api/agent/update-config?id=`    | 更新行为参数                  |
 | `POST` | `/api/agent/update-skill?id=`     | 更新 Skill 文档               |
-| `POST` | `/api/agent/activate-license?id=` | 激活 Pro 授权码               |
 
 ---
 
@@ -488,8 +487,8 @@ npx wrangler d1 execute agent_saas --remote --file=schema.sql
 | `CF_ACCOUNT_ID`        | ✅   | Cloudflare 账号 ID                                                                                                         |
 | `CF_GATEWAY_NAME`      | ✅   | Cloudflare AI Gateway 名称                                                                                                 |
 | `GEMINI_MODEL`         | ✅   | LLM 模型名；填 Gemini 模型名走 Gemini，填 Grok 模型名走 xAI（如 `grok-3-mini-fast`）                                       |
-| `KO_FI_MINIMUM_AMOUNT` | 可选 | 对私有部署没有意义                                                                                                         |
-| `ENABLE_SUBSCRIPTIONS` | 可选 | **私有部署应当设置为`"0"`**，关闭订阅功能开关。`"1"`（默认）开启 Pro 授权校验；`"0"` 关闭订阅，所有 Agent 免费使用全部功能 |
+
+
 
 ### Secrets（通过 `wrangler secret put` 设置，不可提交）
 
@@ -502,4 +501,4 @@ npx wrangler d1 execute agent_saas --remote --file=schema.sql
 | `DEPLOY_PASSCODE`          | 建议 | 保护 Agent 创建流程的部署授权码                           |
 | `BEARER_TOKEN`             | ✅   | X 应用级 Bearer Token（用于 Wizard 蒸馏功能）             |
 | `GROK_API_KEY`             | 可选 | xAI API Key（使用 Grok 模型时必填，在 console.x.ai 生成） |
-| `KO_FI_VERIFICATION_TOKEN` | 可选 | Ko-Fi Webhook 验证 Token                                  |
+
