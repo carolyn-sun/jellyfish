@@ -178,46 +178,33 @@
     <div class="card">
       <h2>👀 <span class="lang-zh">刷时间线</span><span class="lang-en">Browse Timeline</span></h2>
       <p><span class="lang-zh">扫描粉丝/特别用户列表，随机点赞或回复 2 条推文</span><span class="lang-en">Scan fans/special users, randomly like or reply to 2 tweets</span></p>
-      <p style="font-size:.8rem;color:var(--text-muted);margin-top:4px">🕒 <span class="lang-zh">自动执行：<b>每小时整点</b>一次</span><span class="lang-en">Auto-runs: once per hour on the hour</span></p>
-
+      <p style="font-size:.8rem;color:var(--text-muted);margin-top:4px;margin-bottom:12px">🕒 <span class="lang-zh">自动执行：<b>每小时整点</b>一次</span><span class="lang-en">Auto-runs: once per hour on the hour</span></p>
+      <a class="btn btn-primary" href="#" onclick="run(event,getApiUrl('/api/agent/trigger-timeline'));return false"><span class="lang-zh">立即执行</span><span class="lang-en">Run Now</span></a>
     </div>
     <div class="card">
       <h2>💬 <span class="lang-zh">自发推文</span><span class="lang-en">Spontaneous Tweet</span></h2>
       <p><span class="lang-zh">随机生成并发布一条自发推文</span><span class="lang-en">Generate and post a spontaneous tweet</span></p>
-      <p style="font-size:.8rem;color:var(--text-muted);margin-top:4px">🕒 <span class="lang-zh">自动触发：每日 <b>UTC 12:30</b>，冷却固定 <b>3 天</b></span><span class="lang-en">Auto-triggers daily at <b>UTC 12:30</b>; <b>3-day</b> cooldown</span></p>
-
+      <p style="font-size:.8rem;color:var(--text-muted);margin-top:4px;margin-bottom:12px">🕒 <span class="lang-zh">自动触发：每日 <b>UTC 12:30</b>，冷却固定 <b>3 天</b></span><span class="lang-en">Auto-triggers daily at <b>UTC 12:30</b>; <b>3-day</b> cooldown</span></p>
+      <a class="btn btn-primary" href="#" onclick="run(event,getApiUrl('/api/agent/spontaneous')+'&force=true');return false"><span class="lang-zh">跳过冷却发布</span><span class="lang-en">Force Post Now</span></a>
+    </div>
+    <div class="card">
+      <h2>🧠 <span class="lang-zh">互动记忆</span><span class="lang-en">Interaction Memory</span></h2>
+      <p style="font-size:.8rem;margin-bottom:12px"><span class="lang-zh">系统每 6 小时自动拉取互动记忆。</span><span class="lang-en">Memory is auto-refreshed every 6h.</span></p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn btn-primary" id="view-memory-btn" href="#" target="_blank" style="font-size:.85rem;height:36px;padding:0 14px"><span class="lang-zh">📖 查看记忆</span><span class="lang-en">📖 View Memory</span></a>
+        <a class="btn btn-ghost" style="font-size:.85rem;height:36px;padding:0 14px" href="#" onclick="run(event,getApiUrl('/api/agent/refresh-memory'));return false"><span class="lang-zh">⚡ 立即拉取</span><span class="lang-en">⚡ Refresh Now</span></a>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🧬 <span class="lang-zh">人格演化</span><span class="lang-en">Personality Evolution</span></h2>
+      <p style="font-size:.8rem;margin-bottom:12px"><span class="lang-zh">每日 UTC 03:00 自动吸收记忆重塑人格。</span><span class="lang-en">Persona evolves nightly at UTC 03:00.</span></p>
+      <a class="btn btn-primary" href="#" onclick="run(event,getApiUrl('/api/agent/evolve'));return false"><span class="lang-zh">立即重塑</span><span class="lang-en">Evolve Now</span></a>
     </div>
     <div class="card">
       <h2>📊 <span class="lang-zh">Agent 状态</span><span class="lang-en">Agent Status</span></h2>
-      <p><span class="lang-zh">查看当前状态与配置信息</span><span class="lang-en">View current status and configuration</span></p>
+      <p style="margin-bottom:12px"><span class="lang-zh">查看当前状态与配置信息</span><span class="lang-en">View current status and configuration</span></p>
       <a class="btn btn-ghost" href="#" onclick="run(event,getApiUrl('/api/agent/status'));return false"><span class="lang-zh">查看</span><span class="lang-en">View</span></a>
       <a class="btn btn-ghost" id="activity-log-btn" href="#" target="_blank"><span class="lang-zh">活动日志</span><span class="lang-en">Activity Log</span></a>
-    </div>
-  </div>
-
-  <div class="card-grid" style="gap:10px">
-    <div class="card" style="border-color:rgba(139,92,246,0.25)">
-      <h2 style="font-size:.95rem">👀 <span class="lang-zh">刷时间线</span><span class="lang-en">Browse Timeline</span></h2>
-      <p style="font-size:.78rem"><span class="lang-zh">立即扫描特别用户列表，随机点赞或回复</span><span class="lang-en">Scan special users, randomly like or reply now</span></p>
-      <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="run(event,getApiUrl('/api/agent/trigger-timeline'));return false"><span class="lang-zh">立即执行</span><span class="lang-en">Run Now</span></a>
-    </div>
-    <div class="card" style="border-color:rgba(139,92,246,0.25)">
-      <h2 style="font-size:.95rem">💬 <span class="lang-zh">无视冷却发推</span><span class="lang-en">Force Tweet</span></h2>
-      <p style="font-size:.78rem"><span class="lang-zh">跳过 3 天冷却限制，立即发布一条自发推文</span><span class="lang-en">Skip the 3-day cooldown and post a tweet now</span></p>
-      <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="run(event,getApiUrl('/api/agent/spontaneous')+'&force=true');return false"><span class="lang-zh">立即发布</span><span class="lang-en">Post Now</span></a>
-    </div>
-    <div class="card" style="border-color:rgba(139,92,246,0.25)">
-      <h2 style="font-size:.95rem">🧠 <span class="lang-zh">互动记忆</span><span class="lang-en">Interaction Memory</span></h2>
-      <p style="font-size:.78rem"><span class="lang-zh">系统每 6 小时自动拉取互动记忆。</span><span class="lang-en">Memory is auto-refreshed every 6h.</span></p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-        <a class="btn btn-ghost" id="view-memory-btn" href="#" target="_blank" style="font-size:.85rem;height:36px;padding:0 14px"><span class="lang-zh">📖 查看记忆</span><span class="lang-en">📖 View Memory</span></a>
-        <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa;font-size:.85rem;height:36px;padding:0 14px" href="#" onclick="run(event,getApiUrl('/api/agent/refresh-memory'));return false"><span class="lang-zh">⚡ 立即拉取</span><span class="lang-en">⚡ Refresh Now</span></a>
-      </div>
-    </div>
-    <div class="card" style="border-color:rgba(139,92,246,0.25)">
-      <h2 style="font-size:.95rem">🧬 <span class="lang-zh">人格演化</span><span class="lang-en">Personality Evolution</span></h2>
-      <p style="font-size:.78rem"><span class="lang-zh">每日 UTC 03:00 自动吸收记忆重塑人格。</span><span class="lang-en">Persona evolves nightly at UTC 03:00.</span></p>
-      <a class="btn btn-ghost" style="border-color:rgba(139,92,246,0.4);color:#a78bfa" href="#" onclick="run(event,getApiUrl('/api/agent/evolve'));return false"><span class="lang-zh">立即重塑</span><span class="lang-en">Evolve Now</span></a>
     </div>
   </div>
 
