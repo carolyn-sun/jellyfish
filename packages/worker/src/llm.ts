@@ -76,7 +76,7 @@ function buildMentionOverride(agent: AgentDbRecord, vip: VipEntry | undefined, l
   const replyPct = Math.round(vip.replyProbability * 100);
   const personaLabel = vip.persona ?? (lang === 'zh' ? '重点关注' : 'Priority Contact');
   if (lang === 'zh') {
-    return `\n\n【⭐ VIP 指令 | @${vip.username} | ${personaLabel}】\n当前搭话者是你的重点关注对象！请以"${personaLabel}"模式热情回应，回复概率提升至 ${replyPct}%，适当放宽字数限制。`;
+    return `\n\n【⭐ VIP 指令 | @${vip.username} | ${personaLabel}】\n当前搭话者是你的重点关注对象。请以"${personaLabel}"模式热情回应，回复概率提升至 ${replyPct}%，适当放宽字数限制。`;
   }
   return `\n\n[⭐ VIP Directive | @${vip.username} | ${personaLabel}]\nThis person is one of your priority contacts! Respond warmly in "${personaLabel}" mode. Reply probability raised to ${replyPct}%. You may be slightly more verbose than usual.`;
 }
@@ -99,7 +99,7 @@ function buildTimelineOverride(agent: AgentDbRecord, vip: VipEntry | undefined, 
   const replyPct = Math.round(vip.replyProbability * 100);
   const personaLabel = vip.persona ?? (lang === 'zh' ? '重点关注' : 'Priority Contact');
   if (lang === 'zh') {
-    return `\n\n【⭐ VIP 时间线 | @${vip.username} | ${personaLabel}】\n注意！发推的人是你的重点关注对象！以"${personaLabel}"模式互动，回复+点赞概率提升至 ${replyPct}%，适当放宽字数限制。`;
+    return `\n\n【⭐ VIP 时间线 | @${vip.username} | ${personaLabel}】\n注意。发推的人是你的重点关注对象。以"${personaLabel}"模式互动，回复+点赞概率提升至 ${replyPct}%，适当放宽字数限制。`;
   }
   return `\n\n[⭐ VIP Timeline | @${vip.username} | ${personaLabel}]\nAttention! The person who posted this is one of your priority contacts! Interact in "${personaLabel}" mode. Reply + like probability raised to ${replyPct}%. Slightly relaxed word limit.`;
 }
@@ -129,7 +129,7 @@ function buildContents(thread: ConversationTurn[], ownUserId: string): GeminiCon
   for (const item of raw) {
     const last = collapsed[collapsed.length - 1];
     if (last && last.role === item.role) {
-      last.parts[0].text += `\n\n${item.parts[0].text}`;
+      last.parts[0]!.text += `\n\n${item.parts[0]!.text}`;
     } else {
       collapsed.push(item);
     }
@@ -144,6 +144,7 @@ export async function generateReply(
   agent: AgentDbRecord,
   thread: ConversationTurn[],
   ownUserId: string,
+  styleAnchors: string[] = [], // recent self-posts injected as behavioral exemplars
 ): Promise<string> {
   const skill = agent.skill_text;
   const lang = detectSkillLang(skill);
@@ -171,9 +172,17 @@ export async function generateReply(
 
   const skipPct = Math.round((1 - agent.reply_pct) * 100);
 
+  // Voice anchor block: inject up to 3 recent self-posts as context BEFORE the
+  // Skill doc so style examples don't break the Skill's own Constraints section.
+  const voiceAnchorBlock = styleAnchors.length > 0
+    ? lang === 'zh'
+      ? `【近期真实推文（风格参考，不要复制）】\n${styleAnchors.slice(0, 3).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\n`
+      : `[Recent actual tweets — style reference only, do not copy]\n${styleAnchors.slice(0, 3).map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\n`
+    : '';
+
   const systemInstruction = lang === 'zh'
-    ? `${skill}\n\n【⚠️ 回复规则】\n作为一个社交能量极度匮乏的 AI 人格，你绝大部分时间都不想开口。\n面对别人的回复或提及，约 ${skipPct}% 的情况下你会选择"已读不回"（直接且仅仅输出 "<skip>"）。\n只有当遇到非常荒谬、触动你或不得不说的话题时，你才会回复。若要回复，文字必须极其简短干瘪。${overrideInstruction}${noRepeatBlock}`
-    : `${skill}\n\n[⚠️ Reply Rules]\nAs an AI persona with severely limited social energy, you almost never feel like speaking.\nFor ~${skipPct}% of mentions you will simply "read and ignore" — output only "<skip>".\nOnly when something is truly absurd, striking, or unavoidable will you reply. If you do reply, keep it extremely brief and dry.${overrideInstruction}${noRepeatBlock}`;
+    ? `${voiceAnchorBlock}${skill}\n\n【⚠️ 回复规则】\n作为一个社交能量极度匮乏的 AI 人格，你绝大部分时间都不想开口。\n面对别人的回复或提及，约 ${skipPct}% 的情况下你会选择"已读不回"（直接且仅仅输出 "<skip>"）。\n只有当遇到非常荒谬、触动你或不得不说的话题时，你才会回复。若要回复，文字必须极其简短干瘪。${overrideInstruction}${noRepeatBlock}`
+    : `${voiceAnchorBlock}${skill}\n\n[⚠️ Reply Rules]\nAs an AI persona with severely limited social energy, you almost never feel like speaking.\nFor ~${skipPct}% of mentions you will simply "read and ignore" — output only "<skip>".\nOnly when something is truly absurd, striking, or unavoidable will you reply. If you do reply, keep it extremely brief and dry.${overrideInstruction}${noRepeatBlock}`;
 
   const text = await generate(env, agent, systemInstruction, contents, 4000, 1.1, lang);
   return text.slice(0, 280);

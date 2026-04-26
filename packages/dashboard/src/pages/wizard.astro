@@ -36,16 +36,44 @@ import Layout from "../layouts/Layout.astro";
       >
 
       <!-- Deploy Passcode Gate -->
-      <div id="deployGate" style="background:rgba(193,147,155,0.08); border:1px solid rgba(193,147,155,0.25); border-radius:12px; padding:16px; margin-top:-8px;">
-        <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:12px;">
+      <div
+        id="deployGate"
+        style="background:rgba(193,147,155,0.08); border:1px solid rgba(193,147,155,0.25); border-radius:12px; padding:16px; margin-top:-8px;"
+      >
+        <div
+          style="display:flex; align-items:flex-start; gap:10px; margin-bottom:12px;"
+        >
           <span style="font-size:1.2rem;">🔑</span>
           <div>
-            <div style="font-size:0.9rem; font-weight:600; color:var(--primary); margin-bottom:4px;">
-              <span class="lang-zh">需要授权码才能部署</span><span class="lang-en">Passcode Required to Deploy</span>
+            <div
+              style="font-size:0.9rem; font-weight:600; color:var(--primary); margin-bottom:4px;"
+            >
+              <span class="lang-zh">需要授权码才能部署</span><span
+                class="lang-en">Passcode Required to Deploy</span
+              >
             </div>
-            <div style="font-size:0.8rem; color:var(--text-muted); line-height:1.6;">
-              <span class="lang-zh">由于 X (Twitter) API 与 LLM API 费用较贵，Agent 部署需联系作者付费获取授权码后方可使用。<br />也可使用 <a href="https://github.com/carolyn-sun/jellyfish" target="_blank" style="color:var(--primary);text-decoration:underline;">项目地址</a> 自行私有部署。</span>
-              <span class="lang-en">Because X (Twitter) API and LLM API costs are significant, deploying an Agent requires a passcode obtained after supporting the author.<br />You can also <a href="https://github.com/carolyn-sun/jellyfish" target="_blank" style="color:var(--primary);text-decoration:underline;">self-host privately</a> using the open-source repo.</span>
+            <div
+              style="font-size:0.8rem; color:var(--text-muted); line-height:1.6;"
+            >
+              <span class="lang-zh"
+                >由于 X (Twitter) API 与 LLM API 费用较贵，Agent
+                部署需联系作者付费获取授权码后方可使用。<br />也可使用 <a
+                  href="https://github.com/carolyn-sun/jellyfish"
+                  target="_blank"
+                  style="color:var(--primary);text-decoration:underline;"
+                  >项目地址</a
+                > 自行私有部署。</span
+              >
+              <span class="lang-en"
+                >Because X (Twitter) API and LLM API costs are significant,
+                deploying an Agent requires a passcode obtained after supporting
+                the author.<br />You can also <a
+                  href="https://github.com/carolyn-sun/jellyfish"
+                  target="_blank"
+                  style="color:var(--primary);text-decoration:underline;"
+                  >self-host privately</a
+                > using the open-source repo.</span
+              >
             </div>
           </div>
         </div>
@@ -58,13 +86,28 @@ import Layout from "../layouts/Layout.astro";
             data-ph-en="Enter passcode"
             placeholder="输入授权码"
           />
-          <button class="btn btn-primary" id="deployPasscodeBtn" style="margin-top:0; white-space:nowrap;">
-            <span class="lang-zh">✓ 验证</span><span class="lang-en">✓ Verify</span>
+          <button
+            class="btn btn-primary"
+            id="deployPasscodeBtn"
+            style="margin-top:0; white-space:nowrap;"
+          >
+            <span class="lang-zh">✓ 验证</span><span class="lang-en"
+              >✓ Verify</span
+            >
           </button>
         </div>
-        <div id="deployGateErr" style="font-size:0.8rem; color:var(--error); margin-top:8px; display:none;"></div>
-        <div id="deployGateOk" style="font-size:0.8rem; color:#86efac; margin-top:8px; display:none;">
-          <span class="lang-zh">✅ 授权成功！可以开始部署了。</span><span class="lang-en">✅ Access granted! You can now deploy.</span>
+        <div
+          id="deployGateErr"
+          style="font-size:0.8rem; color:var(--error); margin-top:8px; display:none;"
+        >
+        </div>
+        <div
+          id="deployGateOk"
+          style="font-size:0.8rem; color:#86efac; margin-top:8px; display:none;"
+        >
+          <span class="lang-zh">✅ 授权成功。可以开始部署了。</span><span
+            class="lang-en">✅ Access granted! You can now deploy.</span
+          >
         </div>
       </div>
       <button
@@ -183,7 +226,7 @@ import Layout from "../layouts/Layout.astro";
         >
       </div>
       <div id="oauthDone" class="alert alert-success">
-        <span class="lang-zh">✅ 授权成功！Refresh Token 已获取。</span><span
+        <span class="lang-zh">✅ 授权成功。Refresh Token 已获取。</span><span
           class="lang-en">✅ Auth Successful! Refresh Token obtained.</span
         >
       </div>
@@ -368,7 +411,7 @@ import Layout from "../layouts/Layout.astro";
     <p class="hint">
       <span class="lang-zh"
         >💡 强烈建议生成 <b>中文</b> 提示词。同等人格配置下，高度凝练的中文能为你日常运行
-        Agent 省下极可观的 System Prompt Token 费率！</span
+        Agent 省下极可观的 System Prompt Token 费率。</span
       ><span class="lang-en"
         >💡 Highly recommend choosing <b>Chinese</b>. Highly condensed Chinese
         persona strings will save you tremendous Tokens!</span
@@ -400,9 +443,9 @@ import Layout from "../layouts/Layout.astro";
       id="skillText"
       rows="12"
       style="resize:vertical"
-      data-ph-zh="蒸馏出的 persona_skill 会显示在这里，你可自由微调补充。可以跳过蒸馏，自己手写！"
+      data-ph-zh="蒸馏出的 persona_skill 会显示在这里，你可自由微调补充。可以跳过蒸馏，自己手写。"
       data-ph-en="Distilled persona_skill will show here, you can handwrite or edit it!"
-      placeholder="蒸馏出的 persona_skill 会显示在这里，你可自由微调补充。可以跳过蒸馏，自己手写！"
+      placeholder="蒸馏出的 persona_skill 会显示在这里，你可自由微调补充。可以跳过蒸馏，自己手写。"
     ></textarea>
 
     <div id="err3" class="alert alert-error"></div>
@@ -659,8 +702,7 @@ import Layout from "../layouts/Layout.astro";
       const nav = $("stepNav");
       nav.innerHTML = "";
 
-      const dotIndex =
-        S.mode === "distill" ? 0 : S.step - 1;
+      const dotIndex = S.mode === "distill" ? 0 : S.step - 1;
 
       STEPS.forEach((lbl, i) => {
         const div = document.createElement("div");
@@ -753,13 +795,13 @@ import Layout from "../layouts/Layout.astro";
 
     // Restore deploy token from sessionStorage (persists within tab session)
     (function () {
-      const savedToken = sessionStorage.getItem('deployToken');
+      const savedToken = sessionStorage.getItem("deployToken");
       if (savedToken) {
         S.deployToken = savedToken;
         $("modeCreateBtn").disabled = false;
-        $("modeCreateBtn").style.opacity = '1';
-        $("modeCreateBtn").style.cursor = 'pointer';
-        $("deployGateOk").style.display = 'block';
+        $("modeCreateBtn").style.opacity = "1";
+        $("modeCreateBtn").style.cursor = "pointer";
+        $("deployGateOk").style.display = "block";
       }
     })();
 
@@ -767,35 +809,42 @@ import Layout from "../layouts/Layout.astro";
       const passcode = $("deployPasscode").value.trim();
       const isEn = document.body.classList.contains("en-mode");
       const errEl = $("deployGateErr");
-      errEl.style.display = 'none';
+      errEl.style.display = "none";
       if (!passcode) {
-        errEl.textContent = isEn ? 'Please enter a passcode.' : '请输入授权码。';
-        errEl.style.display = 'block';
+        errEl.textContent = isEn
+          ? "Please enter a passcode."
+          : "请输入授权码。";
+        errEl.style.display = "block";
         return;
       }
       $("deployPasscodeBtn").disabled = true;
-      $("deployPasscodeBtn").innerHTML = '⏳';
+      $("deployPasscodeBtn").innerHTML = "⏳";
       try {
-        const r = await api('/api/auth/deploy-passcode', { passcode });
+        const r = await api("/api/auth/deploy-passcode", { passcode });
         if (r.ok && r.deployToken) {
           S.deployToken = r.deployToken;
-          sessionStorage.setItem('deployToken', r.deployToken);
+          sessionStorage.setItem("deployToken", r.deployToken);
           $("modeCreateBtn").disabled = false;
-          $("modeCreateBtn").style.opacity = '1';
-          $("modeCreateBtn").style.cursor = 'pointer';
-          $("deployGateOk").style.display = 'block';
-          $("deployGateErr").style.display = 'none';
-          $("deployPasscode").value = '';
+          $("modeCreateBtn").style.opacity = "1";
+          $("modeCreateBtn").style.cursor = "pointer";
+          $("deployGateOk").style.display = "block";
+          $("deployGateErr").style.display = "none";
+          $("deployPasscode").value = "";
         } else {
-          errEl.textContent = isEn ? (r.error || 'Incorrect passcode.') : (r.error || '授权码错误。');
-          errEl.style.display = 'block';
+          errEl.textContent = isEn
+            ? r.error || "Incorrect passcode."
+            : r.error || "授权码错误。";
+          errEl.style.display = "block";
         }
       } catch (e) {
-        errEl.textContent = isEn ? 'Network error: ' + e.message : '网络错误：' + e.message;
-        errEl.style.display = 'block';
+        errEl.textContent = isEn
+          ? "Network error: " + e.message
+          : "网络错误：" + e.message;
+        errEl.style.display = "block";
       } finally {
         $("deployPasscodeBtn").disabled = false;
-        $("deployPasscodeBtn").innerHTML = '<span class="lang-zh">✓ 验证</span><span class="lang-en">✓ Verify</span>';
+        $("deployPasscodeBtn").innerHTML =
+          '<span class="lang-zh">✓ 验证</span><span class="lang-en">✓ Verify</span>';
       }
     });
     $("deployPasscode").addEventListener("keydown", (e) => {
@@ -814,7 +863,10 @@ import Layout from "../layouts/Layout.astro";
     // Back button for step 3 is context-aware:
     // distill mode → go back to landing page (/); create mode → step 2 (identity)
     function goBack3() {
-      if (S.mode === 'distill') { window.location.href = '/'; return; }
+      if (S.mode === "distill") {
+        window.location.href = "/";
+        return;
+      }
       go(2);
     }
 
@@ -881,9 +933,9 @@ import Layout from "../layouts/Layout.astro";
     buildNav();
     // Auto-route based on ?mode= URL param (e.g. from landing page “Try Distill” button)
     (function () {
-      const urlMode = new URLSearchParams(window.location.search).get('mode');
-      if (urlMode === 'distill') {
-        S.mode = 'distill';
+      const urlMode = new URLSearchParams(window.location.search).get("mode");
+      if (urlMode === "distill") {
+        S.mode = "distill";
         go(3);
       }
     })();
@@ -1034,7 +1086,7 @@ import Layout from "../layouts/Layout.astro";
       const el = $("distillRes");
       el.innerHTML =
         dHtml +
-        '<br><b><span class="lang-zh">✅ 蒸馏成功！</span><span class="lang-en">✅ Distillation Successful!</span></b>';
+        '<br><b><span class="lang-zh">✅ 蒸馏成功。</span><span class="lang-en">✅ Distillation Successful!</span></b>';
       el.className = "alert alert-success show";
       $("skillText").value = r.skill;
     });
@@ -1113,7 +1165,8 @@ import Layout from "../layouts/Layout.astro";
         skill: S.skill,
         refreshToken: S.refreshToken,
         dashboardSecret: S.dashboardSecret,
-        deployToken: S.deployToken || sessionStorage.getItem('deployToken') || '',
+        deployToken:
+          S.deployToken || sessionStorage.getItem("deployToken") || "",
       };
       const r = await api("/api/agent/create", payload);
       if (r.error) {
@@ -1127,7 +1180,7 @@ import Layout from "../layouts/Layout.astro";
 
       const isZh = !document.body.classList.contains("en-mode");
       $("deployRes").innerHTML = isZh
-        ? `🎉 <b>Agent 部署成功！</b><br><br>你的 Agent 已储存并开始自动巡逻。`
+        ? `🎉 <b>Agent 部署成功。</b><br><br>你的 Agent 已储存并开始自动巡逻。`
         : `🎉 <b>Agent Deployed Successfully!</b><br><br>Your Agent is active and patrolling.`;
       $("deployRes").className = "alert alert-success show";
 
@@ -1146,6 +1199,4 @@ import Layout from "../layouts/Layout.astro";
       $("finishBtn").style.display = "none";
     });
   </script>
-
-
 </Layout>

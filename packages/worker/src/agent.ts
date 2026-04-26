@@ -14,28 +14,16 @@ import {
 } from './twitter.ts';
 import { generateReply, generateSpontaneousTweet, evaluateTimelineTweet, evolvePersonalitySkill } from './llm.ts';
 import {
-  getLastMentionId,
-  saveLastMentionId,
-  getCachedOwnUserId,
-  saveOwnUserId,
-  getCachedSourceUserId,
-  saveSourceUserId,
-  getLastSpontaneous,
-  saveLastSpontaneous,
-  getRecentSpontaneous,
-  appendRecentSpontaneous,
-  hasReplied,
-  markReplied,
-  hasSeenTimelineTweet,
-  logActivity,
-  markTimelineTweetSeen,
-  addKnownFan,
-  getKnownFans,
-  appendInteractionsMemory,
-  getInteractionsMemory,
-  clearInteractionsMemory,
-  getSourceNames,
-  saveSourceNames,
+  getLastMentionId, saveLastMentionId,
+  getCachedOwnUserId, saveOwnUserId,
+  getCachedSourceUserId, saveSourceUserId,
+  getLastSpontaneous, saveLastSpontaneous,
+  getRecentSpontaneous, appendRecentSpontaneous,
+  hasReplied, markReplied,
+  hasSeenTimelineTweet, logActivity, markTimelineTweetSeen,
+  addKnownFan, getKnownFans,
+  appendInteractionsMemory, getInteractionsMemory, clearInteractionsMemory,
+  getSourceNames, saveSourceNames,
 } from './memory.ts';
 
 // Max mentions to process in a single cron run
@@ -163,6 +151,7 @@ async function processMention(
   userMap: Map<string, string>,
   botHandles: Set<string>,
   botUserIds: Set<string>,
+  styleAnchors: string[],
 ): Promise<boolean> {
   const originalTweetId = mention.edit_history_tweet_ids?.[0] ?? mention.id;
 
@@ -184,7 +173,7 @@ async function processMention(
 
   try {
     return await _doProcessMention(
-      env, agent, mention, originalTweetId, ownUserId, mediaMap, userMap, botHandles, botUserIds,
+      env, agent, mention, originalTweetId, ownUserId, mediaMap, userMap, botHandles, botUserIds, styleAnchors,
     );
   } finally {
     // Always release so errors/early-returns don't block future cron runs.
@@ -203,6 +192,7 @@ async function _doProcessMention(
   userMap: Map<string, string>,
   botHandles: Set<string>,
   botUserIds: Set<string>,
+  styleAnchors: string[],
 ): Promise<boolean> {
 
   // Convenience wrapper: write the permanent 30-day "replied" marker and return true.
@@ -297,7 +287,7 @@ async function _doProcessMention(
   }
 
   // ── LLM decision ───────────────────────────────────────────────────
-  const replyText = await generateReply(env, agent, conversation, ownUserId);
+  const replyText = await generateReply(env, agent, conversation, ownUserId, styleAnchors);
 
   if (replyText.includes('<skip>') || replyText.trim() === '') {
     // LLM may still skip for content it strongly dislikes
@@ -352,7 +342,11 @@ export async function runMentionLoop(env: Env, agent: AgentDbRecord): Promise<{ 
   // X returns newest-first; process oldest-first so IDs advance monotonically
   const allMentions = [...response.data].reverse().slice(0, MAX_PROCESS_PER_RUN);
 
-  // ── Deduplicate by conversation_id ─────────────────────────────────────────
+  // Pre-fetch style anchors once for the entire mention batch.
+  // recentSpontaneous is stable during a single cron run — no need to re-read per mention.
+  const styleAnchors = await getRecentSpontaneous(env, agent.id);
+
+  // Deduplicate by conversation_id
   // In a multi-person discussion thread, multiple participants may @mention the
   // agent in the same conversation. We should only respond ONCE per thread to
   // avoid spamming similar replies. Keep only the newest mention per conversation
@@ -391,7 +385,7 @@ export async function runMentionLoop(env: Env, agent: AgentDbRecord): Promise<{ 
 
     let success = false;
     try {
-      success = await processMention(env, agent, mention, ownUserId, mediaMap, userMap, botHandles, botUserIds);
+      success = await processMention(env, agent, mention, ownUserId, mediaMap, userMap, botHandles, botUserIds, styleAnchors);
       if (success) processed++;
     } catch (err) {
       const errStr = String(err);

@@ -103,7 +103,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── Success ───────────────────────────────────────────────────────────────
-  console.log('\n✅  授权成功！\n');
+  console.log('\n✅  授权成功。\n');
   console.log('━'.repeat(60));
   console.log(`X_CLIENT_ID     : ${CLIENT_ID}`);
   console.log(`X_REFRESH_TOKEN : ${data.refresh_token}`);
@@ -120,7 +120,7 @@ const server = http.createServer(async (req, res) => {
 <style>body{font-family:system-ui,sans-serif;padding:48px;max-width:560px;margin:auto}
 h2{color:#16a34a}</style></head>
 <body>
-  <h2>✅ 授权成功！</h2>
+  <h2>✅ 授权成功。</h2>
   <p>请回到终端查看你的 <strong>refresh_token</strong>，然后按照提示设置 Wrangler Secrets。</p>
   <p style="color:#6b7280">这个页面可以关闭了。</p>
 </body></html>`);
