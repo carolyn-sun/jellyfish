@@ -1,0 +1,16 @@
+# Core training stack — install order matters for CUDA compatibility.
+# Run: pip install -r requirements.txt
+torch>=2.1.0
+transformers>=4.40.0
+peft>=0.10.0
+datasets>=2.18.0
+trl>=0.8.6
+
+# Unsloth: memory-efficient 4-bit fine-tuning.
+# PyPI stable release (no git dependency, works offline after download).
+# See https://github.com/unslothai/unsloth for GPU/CUDA version matrix.
+unsloth[colab-new]
+
+# Flash Attention 2 for faster training (optional but recommended on A100/H100).
+# Comment out if your GPU doesn't support it or install fails.
+xformers>=0.0.25

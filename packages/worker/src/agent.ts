@@ -564,10 +564,10 @@ export async function runTimelineEngagement(env: Env, agent: AgentDbRecord): Pro
       const decision = await evaluateTimelineTweet(env, agent, item.tweet.text, item.user.username, tweetReplies);
       console.log(`[agent ${agent.id}] LLM decision for ${item.tweet.id}: "${decision}"`);
 
-      if (decision.startsWith('<skip>')) {
+      if (decision.includes('<skip>')) {
         // LLM still may output <skip> for strongly repulsive content
         await logActivity(env, agent.id, `skip:${item.tweet.id}`, 'view', `默默看了看 @${item.user.username} 说的："${item.tweet.text}"`, item.user.username);
-      } else if (decision.startsWith('<like>')) {
+      } else if (decision.includes('<like>')) {
         await likeTweet(env, agent, ownUserId, item.tweet.id);
         await logActivity(env, agent.id, `like:${item.tweet.id}`, 'like', `给 @${item.user.username} 点了个赞："${item.tweet.text}"`, item.user.username);
         likes++;

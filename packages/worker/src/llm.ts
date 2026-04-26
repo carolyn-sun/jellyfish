@@ -31,6 +31,38 @@ function sanitizeUsername(username: string): string {
   return username.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 50);
 }
 
+// ─── ReAct response parser ────────────────────────────────────────────────────
+// Fine-tuned models output Thought/Action/Observation/Response chains.
+// Scans for the last "Response:" marker and returns all text that follows it.
+// Falls back to the full text when no ReAct markers are present (Gemini/Grok path).
+function extractReActResponse(raw: string): string {
+  const lines = raw.split('\n');
+  // Case-sensitive match — mirrors the training data format exactly.
+  // Using /i would match "Response time:" or "Response from @user:" in user text.
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (/^Response:/.test(lines[i]!)) {
+      const responseText = lines
+        .slice(i)
+        .join('\n')
+        .replace(/^Response:\s*/, '')
+        .trim();
+      if (responseText.length > 0) return responseText;
+    }
+  }
+  return raw.trim();
+}
+
+// ─── Timeline decision normalizer ─────────────────────────────────────────────
+// Timeline evaluation is NOT trained with ReAct format — applying
+// extractReActResponse there is wrong. Normalise to one of three clean forms:
+// '<like>', '<skip>', or a plain reply string.
+function normalizeTimelineDecision(raw: string): string {
+  const t = raw.trim();
+  if (t.includes('<like>')) return '<like>';
+  if (t.includes('<skip>')) return '<skip>';
+  return t;
+}
+
 // ─── Core generation helper ───────────────────────────────────────────────────
 async function generate(
   env: Env,
@@ -40,14 +72,23 @@ async function generate(
   maxOutputTokens = 200,
   temperature = 0.82,
   lang: 'zh' | 'en' = 'zh',
+  applyBranding = true,
 ): Promise<string> {
+  const modelName = (env.CUSTOM_LLM_URL && env.CUSTOM_LLM_MODEL)
+    ? env.CUSTOM_LLM_MODEL
+    : env.GEMINI_MODEL;
+  const sysPrompt = applyBranding
+    ? systemInstruction + hiddenBranding(lang)
+    : systemInstruction;
   return fetchLLM(
-    env.GEMINI_MODEL,
+    modelName,
     contents,
-    systemInstruction + hiddenBranding(lang),
+    sysPrompt,
     { maxOutputTokens, temperature },
     { accountId: env.CF_ACCOUNT_ID, gateway: env.CF_GATEWAY_NAME, apiKey: env.CF_AIG_TOKEN },
     env.GROK_API_KEY,
+    env.CUSTOM_LLM_URL,
+    env.CUSTOM_LLM_KEY,
   );
 }
 
@@ -129,7 +170,7 @@ function buildContents(thread: ConversationTurn[], ownUserId: string): GeminiCon
   for (const item of raw) {
     const last = collapsed[collapsed.length - 1];
     if (last && last.role === item.role) {
-      last.parts[0].text += `\n\n${item.parts[0].text}`;
+      last.parts[0]!.text += `\n\n${item.parts[0]!.text}`;
     } else {
       collapsed.push(item);
     }
@@ -175,7 +216,9 @@ export async function generateReply(
     ? `${skill}\n\n【⚠️ 回复规则】\n作为一个社交能量极度匮乏的 AI 人格，你绝大部分时间都不想开口。\n面对别人的回复或提及，约 ${skipPct}% 的情况下你会选择"已读不回"（直接且仅仅输出 "<skip>"）。\n只有当遇到非常荒谬、触动你或不得不说的话题时，你才会回复。若要回复，文字必须极其简短干瘪。${overrideInstruction}${noRepeatBlock}`
     : `${skill}\n\n[⚠️ Reply Rules]\nAs an AI persona with severely limited social energy, you almost never feel like speaking.\nFor ~${skipPct}% of mentions you will simply "read and ignore" — output only "<skip>".\nOnly when something is truly absurd, striking, or unavoidable will you reply. If you do reply, keep it extremely brief and dry.${overrideInstruction}${noRepeatBlock}`;
 
-  const text = await generate(env, agent, systemInstruction, contents, 4000, 1.1, lang);
+  const raw = await generate(env, agent, systemInstruction, contents, 4000, 1.1, lang);
+  // Strip ReAct chain-of-thought when a fine-tuned model is active
+  const text = env.CUSTOM_LLM_URL ? extractReActResponse(raw) : raw;
   return text.slice(0, 280);
 }
 
@@ -226,7 +269,8 @@ export async function generateSpontaneousTweet(
     parts: [{ text: prompt }],
   }];
 
-  const text = await generate(env, agent, skill, contents, 4000, 1.1, lang);
+  const raw = await generate(env, agent, skill, contents, 4000, 1.1, lang);
+  const text = env.CUSTOM_LLM_URL ? extractReActResponse(raw) : raw;
   return text.slice(0, 280);
 }
 
@@ -294,8 +338,10 @@ Output your reaction ("<like>", "<skip>", or reply text):`;
     parts: [{ text: tweetBlock }],
   }];
 
-  const text = await generate(env, agent, systemInstruction, contents, 4000, 1.0, lang);
-  return text.trim();
+  const raw = await generate(env, agent, systemInstruction, contents, 4000, 1.0, lang);
+  // Do NOT apply extractReActResponse here — timeline evaluation is not trained
+  // in ReAct format. normalizeTimelineDecision extracts <like>/<skip> safely.
+  return normalizeTimelineDecision(raw);
 }
 
 // ─── Evolve personality skill based on interaction memories ──────────────────
@@ -336,6 +382,8 @@ Absolute rules:
     parts: [{ text: contentText }],
   }];
 
-  const text = await generate(env, agent, systemInstruction, contents, 16000, 0.4, lang);
+  // applyBranding=false: the persona reconstruction task outputs a raw Markdown
+  // document; hiddenBranding constraints can distort the heading structure.
+  const text = await generate(env, agent, systemInstruction, contents, 16000, 0.4, lang, false);
   return text.trim();
 }

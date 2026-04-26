@@ -5,6 +5,7 @@ import { runMentionLoop, runSpontaneousTweet, runTimelineEngagement, runMemoryRe
 import { getMe, getUserByUsername, getUserTweets, getMentions } from './twitter.ts';
 import { getLastMentionId, saveLastMentionId, getCachedOwnUserId, saveOwnUserId, getInteractionsMemory, getActivityLog, getSourceNames, hasReplied, markReplied } from './memory.ts';
 import { fetchSourceTweets, distillSkillFromTweets, genSample, refineSkill } from './builder.ts';
+import { generateReActDataset } from './dataset.ts';
 import { generateReply } from './llm.ts';
 import { listGeminiModels } from './gemini.ts';
 import { getValidAccessToken } from './auth.ts';
@@ -454,6 +455,27 @@ app.post('/api/distill', async (c) => {
     const fetched: Record<string, number> = {};
     for (const [k, v] of Object.entries(tweetsByAccount)) fetched[k] = v.length;
     return c.json({ skill, fetched });
+  } catch (err) { return c.json({ error: String(err) }, 500); }
+});
+
+app.post('/api/dataset/generate', async (c) => {
+  const agentId = c.req.query('id');
+  if (!agentId) return c.json({ error: 'Missing agent ID' }, 400);
+  // Require auth — this endpoint calls the Teacher Model and consumes API quota
+  if (!await requireAuth(c, agentId)) return c.json({ error: 'Unauthorized — session token required' }, 401);
+  const agent = await loadAgent(c);
+  if (!agent) return c.json({ error: 'Agent not found' }, 404);
+  if (!agent.source_accounts?.length) return c.json({ error: 'Agent has no source accounts configured.' }, 400);
+  if (!agent.skill_text?.trim()) return c.json({ error: 'Agent has no Skill document. Generate one in the Wizard first.' }, 400);
+  try {
+    const bearerToken = c.env.BEARER_TOKEN;
+    if (!bearerToken) return c.json({ error: 'BEARER_TOKEN not configured on server.' }, 500);
+    const geminiModel = c.env.GEMINI_MODEL;
+    const gatewayConfig = { accountId: c.env.CF_ACCOUNT_ID, gateway: c.env.CF_GATEWAY_NAME, apiKey: c.env.CF_AIG_TOKEN };
+    const tweetsByAccount = await fetchSourceTweets(agent.source_accounts, bearerToken);
+    if (Object.keys(tweetsByAccount).length === 0) return c.json({ error: 'No tweets fetched. Check BEARER_TOKEN.' }, 400);
+    const jsonl = await generateReActDataset(tweetsByAccount, agent.skill_text, geminiModel, gatewayConfig, c.env.GROK_API_KEY);
+    return c.json({ dataset: jsonl, lines: jsonl.split('\n').length });
   } catch (err) { return c.json({ error: String(err) }, 500); }
 });
 

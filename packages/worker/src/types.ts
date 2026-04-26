@@ -92,6 +92,17 @@ export interface Env {
    * Obtain at https://console.x.ai/
    */
   GROK_API_KEY?: string;
+  /** Custom LLM server URL for fine-tuned models (e.g. vLLM or Ollama endpoint) */
+  CUSTOM_LLM_URL?: string;
+  /** API Key for the custom LLM server */
+  CUSTOM_LLM_KEY?: string;
+  /**
+   * Model name to use when calling CUSTOM_LLM_URL.
+   * Defaults to GEMINI_MODEL when not set, which causes failures if the
+   * self-hosted server doesn't recognise the Gemini model name.
+   * Example: "jellyfish-agent" or "qwen2-7b-instruct"
+   */
+  CUSTOM_LLM_MODEL?: string;
 }
 
 // ─── X API types ───────────────────────────────────────────────────────────────

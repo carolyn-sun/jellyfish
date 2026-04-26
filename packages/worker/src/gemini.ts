@@ -166,9 +166,57 @@ export async function fetchGrok(
   return text.trim();
 }
 
+// ─── Custom LLM (vLLM / Ollama) ───────────────────────────────────────────────
+export async function fetchCustomLLM(
+  model: string,
+  contents: GeminiContent[],
+  url: string,
+  apiKey?: string,
+  systemInstruction?: string,
+  config?: GeminiConfig,
+): Promise<string> {
+  const messages: Array<{ role: string; content: string }> = [];
+  if (systemInstruction) {
+    messages.push({ role: 'system', content: systemInstruction });
+  }
+  for (const c of contents) {
+    messages.push({
+      role: c.role === 'model' ? 'assistant' : 'user',
+      content: c.parts.map(p => p.text).join('\n'),
+    });
+  }
+
+  const body: Record<string, unknown> = { model, messages };
+  if (config?.maxOutputTokens !== undefined) body.max_tokens = config.maxOutputTokens;
+  if (config?.temperature !== undefined) body.temperature = config.temperature;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    // 25 s — leaves headroom before Cloudflare Workers' 30 s wall-clock limit.
+    signal: AbortSignal.timeout(25_000),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '(no body)');
+    throw new Error(`[custom-llm] API error ${res.status}: ${errText}`);
+  }
+
+  const data = await res.json() as any;
+  if (data.error) throw new Error(`[custom-llm] API error: ${data.error.message}`);
+  
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error('[custom-llm] Empty response from model');
+  
+  return text.trim();
+}
+
 // ─── Unified LLM entry point ──────────────────────────────────────────────────
-// Routes to Grok if the model name starts with "grok-" or "xai/", otherwise Gemini.
-// The GEMINI_MODEL env var selects the active model; no code changes needed to switch.
+// Routes to Custom LLM if configured, otherwise Grok/Gemini
 export async function fetchLLM(
   model: string,
   contents: GeminiContent[],
@@ -176,7 +224,13 @@ export async function fetchLLM(
   config?: GeminiConfig,
   gatewayConfig?: GatewayConfig,
   grokApiKey?: string,
+  customLlmUrl?: string,
+  customLlmKey?: string,
 ): Promise<string> {
+  if (customLlmUrl) {
+    return fetchCustomLLM(model, contents, customLlmUrl, customLlmKey, systemInstruction, config);
+  }
+
   const isGrok = model.startsWith('grok-') || model.startsWith('xai/');
   if (isGrok) {
     return fetchGrok(model, contents, systemInstruction, config, gatewayConfig, grokApiKey);

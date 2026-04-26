@@ -220,6 +220,17 @@
     <span id="skill-status" class="status-tag"></span>
   </div>
 
+  <!-- Dataset Generation -->
+  <div class="section-title">🧪 <span class="lang-zh">数据蒸馏与微调准备</span><span class="lang-en">Data Distillation & Fine-Tuning Prep</span></div>
+  <div class="card wide" style="border-color:rgba(16,185,129,0.35)">
+    <h2 style="color:#10b981"><span class="lang-zh">构造 Agent 交互轨迹 (ReAct)</span><span class="lang-en">Construct Agent Trajectories (ReAct)</span></h2>
+    <p><span class="lang-zh">基于当前的 Skill 配置和关联的源账号推文，调用强大的教师模型生成标准 Agent 格式（Thought-Action-Observation-Response）的微调数据集（.jsonl），用于后续的 QLoRA 训练。</span><span class="lang-en">Generate a standard Agent trajectory dataset (.jsonl) using Thought-Action-Observation-Response format, based on the current Skill and source tweets. Ready for QLoRA fine-tuning.</span></p>
+    <div style="margin-top: 14px">
+      <button class="btn btn-primary" id="btn-generate-dataset" onclick="generateDataset(event)">⬇️ <span class="lang-zh">生成并下载 JSONL 数据集</span><span class="lang-en">Generate & Download JSONL</span></button>
+      <span id="dataset-status" class="status-tag"></span>
+    </div>
+  </div>
+
   <!-- Configuration -->
   <div class="section-title"><span class="lang-zh">配置调节</span><span class="lang-en">Configuration</span></div>
   <div class="card-grid">
@@ -768,6 +779,42 @@
       st.textContent = d.ok ? (isEn ? '✅ Saved' : '✅ 已保存') : '❌ ' + d.error;
       st.style.color = d.ok ? '#86efac' : '#f87171';
     } catch(e) { st.textContent = '❌ ' + e.message; st.style.color = '#f87171'; }
+  }
+
+  // ── Generate Dataset ───────────────────────────────────────────────────────
+  async function generateDataset(e) {
+    var btn = e.currentTarget;
+    btn.classList.add('btn-loading');
+    var st = document.getElementById('dataset-status');
+    var isEn = document.body.classList.contains('en-mode');
+    st.textContent = isEn ? '⏳ Generating dataset (this may take a while)...' : '⏳ 正在合成数据集（这可能需要一些时间）...';
+    st.style.color = '#94a3b8';
+    try {
+      var r = await fetch(getApiUrl('/api/dataset/generate'), {
+        method: 'POST', headers: authHeaders()
+      });
+      var d = await r.json();
+      if (!d.dataset) throw new Error(d.error || 'Failed to generate dataset');
+      
+      var blob = new Blob([d.dataset], { type: 'application/jsonl' });
+      var url = window.URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = 'dataset_react_finetune_' + _agentId + '.jsonl';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+
+      st.textContent = isEn ? '✅ Dataset downloaded' : '✅ 数据集已下载';
+      st.style.color = '#86efac';
+    } catch(err) {
+      st.textContent = '❌ ' + err.message;
+      st.style.color = '#f87171';
+    } finally {
+      btn.classList.remove('btn-loading');
+    }
   }
 
   // ── Save config ───────────────────────────────────────────────────────────

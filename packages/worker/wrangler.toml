@@ -61,3 +61,13 @@ X_AUTH_CLIENT_ID = "dDZQdjQzTDc1UmxDck5JRC0wSWM6MTpjaQ"
 # Useful for self-hosted / open deployments where you don’t want a paywall.
 
 ENABLE_SUBSCRIPTIONS = "1"
+
+# Custom Fine-Tuned Model Integration
+# Set these to route LLM calls to your self-hosted vLLM/Ollama instance.
+# ⚠️  When CUSTOM_LLM_URL is set, also set CUSTOM_LLM_MODEL to the model name
+#    your server recognises (e.g. the folder name passed to vLLM --model).
+#    If CUSTOM_LLM_MODEL is omitted, GEMINI_MODEL is used as the model name,
+#    which will cause a 404 on any non-Google server.
+# CUSTOM_LLM_URL   = "http://your-gpu-server-ip:8000/v1/chat/completions"
+# CUSTOM_LLM_MODEL = "jellyfish-agent-lora"   # must match your served model name
+# CUSTOM_LLM_KEY   = ""  # leave empty if your server has no auth
