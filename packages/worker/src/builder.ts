@@ -117,6 +117,10 @@ export async function distillSkillFromTweets(
   gatewayConfig: GatewayConfig,
   grokApiKey?: string,
 ): Promise<string> {
+  // Normalize to strict 'zh' | 'en' — callers may pass 'zh-CN', 'chinese', etc.
+  // Using a single canonical value ensures fingerprint and synthesis always use the same language.
+  const lang: 'zh' | 'en' = promptLang === 'en' ? 'en' : 'zh';
+
   const filtered = Object.fromEntries(
     Object.entries(tweetsByAccount).map(([u, tweets]) => [
       u, sampleDiverse(filterQualityTweets(tweets)),
@@ -127,15 +131,16 @@ export async function distillSkillFromTweets(
   const hasContent = Object.values(filtered).some(t => t.length > 0);
   const source = hasContent ? filtered : tweetsByAccount;
 
-  const blocks = Object.entries(source)
+  const entries = Object.entries(source).filter(([, tweets]) => tweets.length > 0);
+  const blocks = entries
     .map(([u, tweets]) => `### @${u}\n${tweets.map((t, i) => `${i + 1}. ${t}`).join('\n')}`)
     .join('\n\n');
 
   // Voice fingerprint (serial). Fails gracefully — synthesis can proceed without it.
   // Skipped for multi-account to avoid blurred average-persona fingerprints.
-  const singleAccount = Object.values(source).filter(t => t.length > 0).length === 1;
+  const singleAccount = entries.length === 1;
   const voiceFingerprint = singleAccount
-    ? await extractVoiceFingerprint(blocks, promptLang, geminiModel, gatewayConfig, grokApiKey)
+    ? await extractVoiceFingerprint(blocks, lang, geminiModel, gatewayConfig, grokApiKey)
         .catch(() => '')
     : '';
 
@@ -147,7 +152,7 @@ export async function distillSkillFromTweets(
   const JIA_ZHI_GUAN = '\u4ef7\u503c\u89c2'; // 价值观
 
   const voicePreamble = voiceFingerprint
-    ? promptLang === 'zh'
+    ? lang === 'zh'
       ? `\u3010\u9884\u63d0\u53d6\u7684\u8bed\u8a00\u6307\u7eb9\uff08\u8bf7\u5728${KOU_PI}/\u8bed\u6c14\u7ae0\u8282\u4e2d\u878d\u5408\u8fd9\u4e9b\u7279\u5f81\uff09\u3011\n${voiceFingerprint}\n\n`
       : `[Pre-extracted voice fingerprint \u2014 integrate into the Verbal Tics and Tone sections]\n${voiceFingerprint}\n\n`
     : '';
@@ -190,7 +195,7 @@ export async function distillSkillFromTweets(
     'AI \u884c\u4e3a\u7ea6\u675f\uff1a\u56de\u590d\u5b57\u6570\u3001\u4f55\u65f6\u8f93\u51fa <skip>\u3001\u8bdd\u9898\u6807\u7b7e\u7b56\u7565\u3002',
   ].map(s => `- **${s}**`).join('\n');
 
-  const prompt = promptLang === 'en'
+  const prompt = lang === 'en'
     ? `${voicePreamble}You are a persona extraction engine. Analyze the tweets below and output ONLY a structured Markdown persona profile with these exact sections:\n\n${enSections}\n\nSource tweets:\n${blocks}\n\nGenerate the persona.skill document now using ONLY English:`
     : `${voicePreamble}\u4f60\u662f\u4e00\u4e2a\u4eba\u683c\u63d0\u70bc\u5f15\u64ce\u3002\u8bf7\u5206\u6790\u4ee5\u4e0b\u63a8\u6587\uff0c\u4ec5\u8f93\u51fa\u4e00\u4efd\u7ed3\u6784\u5316\u7684 Markdown \u4eba\u683c\u914d\u7f6e\u6587\u6863\uff0c\u5305\u542b\u4ee5\u4e0b\u7ae0\u8282\uff08\u6309\u5e8f\uff09\uff1a\n\n${zhSections}\n\n\u6e90\u63a8\u6587\uff1a\n${blocks}\n\n\u8bf7\u7528\u7eaf\u7b80\u4f53\u4e2d\u6587\u751f\u6210 persona.skill \u6587\u6863\uff1a`;
 

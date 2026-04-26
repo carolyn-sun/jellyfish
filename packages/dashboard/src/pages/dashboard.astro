@@ -1594,13 +1594,18 @@
           }
 
           // Fill header
-          document.getElementById("dash-name").innerHTML =
-            _agentData.agent_name +
-            ' <span class="text-gradient">Dashboard</span>';
-          document.getElementById("dash-sub").innerHTML =
-            'Agent ID: <code style="font-size:.78rem;opacity:.7;user-select:all">' +
-            _agentId +
-            "</code>";
+          var _dashName = document.getElementById("dash-name");
+          _dashName.textContent = (_agentData.agent_name || "") + " ";
+          var _dashNameSuffix = document.createElement("span");
+          _dashNameSuffix.className = "text-gradient";
+          _dashNameSuffix.textContent = "Dashboard";
+          _dashName.appendChild(_dashNameSuffix);
+          var _dashSub = document.getElementById("dash-sub");
+          _dashSub.textContent = "Agent ID: ";
+          var _agentIdCode = document.createElement("code");
+          _agentIdCode.style.cssText = "font-size:.78rem;opacity:.7;user-select:all";
+          _agentIdCode.textContent = _agentId;
+          _dashSub.appendChild(_agentIdCode);
 
           // Fill skill text
           document.getElementById("skill-text").value =
@@ -1792,23 +1797,28 @@
         tbody.innerHTML = "";
         _vipList.forEach(function (v, i) {
           var tr = document.createElement("tr");
-          tr.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
-          tr.innerHTML =
-            '<td style="padding:6px 4px">@' +
-            v.username +
-            "</td>" +
-            '<td style="padding:6px 4px">' +
-            (v.replyProbability ?? "-") +
-            "</td>" +
-            '<td style="padding:6px 4px">' +
-            (v.likeProbability ?? "-") +
-            "</td>" +
-            '<td style="padding:6px 4px;color:var(--text-muted)">' +
-            (v.persona || "") +
-            "</td>" +
-            '<td style="padding:6px 4px"><button data-idx="' +
-            i +
-            '" class="vip-del-btn" style="background:none;border:none;cursor:pointer;color:rgba(248,113,113,0.45);font-size:1rem;line-height:1;padding:4px 8px;border-radius:8px;transition:color .15s,background .15s" onmouseover="this.style.color=\'#f87171\';this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.color=\'rgba(248,113,113,0.45)\';this.style.background=\'none\'">✕</button></td>';
+          var mkTd = function (text, extraStyle) {
+            var td = document.createElement("td");
+            td.style.padding = "6px 4px";
+            if (extraStyle) td.style.cssText += ";" + extraStyle;
+            td.textContent = text;
+            return td;
+          };
+          tr.appendChild(mkTd("@" + (v.username ?? "")));
+          tr.appendChild(mkTd(String(v.replyProbability ?? "-")));
+          tr.appendChild(mkTd(String(v.likeProbability ?? "-")));
+          tr.appendChild(mkTd(v.persona || "", "color:var(--text-muted)"));
+          var actionTd = document.createElement("td");
+          actionTd.style.padding = "6px 4px";
+          var delBtn = document.createElement("button");
+          delBtn.setAttribute("data-idx", String(i));
+          delBtn.className = "vip-del-btn";
+          delBtn.style.cssText = "background:none;border:none;cursor:pointer;color:rgba(248,113,113,0.45);font-size:1rem;line-height:1;padding:4px 8px;border-radius:8px;transition:color .15s,background .15s";
+          delBtn.textContent = "✕";
+          delBtn.addEventListener("mouseover", function () { delBtn.style.color = "#f87171"; delBtn.style.background = "rgba(239,68,68,0.1)"; });
+          delBtn.addEventListener("mouseout", function () { delBtn.style.color = "rgba(248,113,113,0.45)"; delBtn.style.background = "none"; });
+          actionTd.appendChild(delBtn);
+          tr.appendChild(actionTd);
           tbody.appendChild(tr);
         });
         tbody.querySelectorAll(".vip-del-btn").forEach(function (btn) {
@@ -1888,17 +1898,22 @@
 
       function renderWlChips() {
         var el = document.getElementById("wl-chips");
-        el.innerHTML = _wlHandles
-          .map(function (h, i) {
-            return (
-              '<span class="vip-chip">@' +
-              h +
-              '<button onclick="removeWlHandle(' +
-              i +
-              ')" title="Remove" style="background:none;border:none;color:rgba(248,113,113,0.4);cursor:pointer;font-size:.9rem;line-height:1;padding:0;margin-left:2px;transition:color .15s" onmouseover="this.style.color=\'#f87171\'" onmouseout="this.style.color=\'rgba(248,113,113,0.4)\'">✕</button></span>'
-            );
-          })
-          .join("");
+        el.replaceChildren();
+        _wlHandles.forEach(function (h, i) {
+          var chip = document.createElement("span");
+          chip.className = "vip-chip";
+          chip.textContent = "@" + h;
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.title = "Remove";
+          btn.textContent = "✕";
+          btn.style.cssText = "background:none;border:none;color:rgba(248,113,113,0.4);cursor:pointer;font-size:.9rem;line-height:1;padding:0;margin-left:2px;transition:color .15s";
+          btn.addEventListener("click", function () { removeWlHandle(i); });
+          btn.addEventListener("mouseover", function () { btn.style.color = "#f87171"; });
+          btn.addEventListener("mouseout", function () { btn.style.color = "rgba(248,113,113,0.4)"; });
+          chip.appendChild(btn);
+          el.appendChild(chip);
+        });
       }
 
       function addWlHandle() {

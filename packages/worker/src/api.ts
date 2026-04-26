@@ -446,6 +446,10 @@ app.post('/api/distill', async (c) => {
     const { sourceAccounts, promptLang } = await c.req.json() as any;
     const bearerToken = c.env.BEARER_TOKEN;
     if (!bearerToken) return c.json({ error: 'BEARER_TOKEN not configured on server.' }, 500);
+    if (!Array.isArray(sourceAccounts) || sourceAccounts.length === 0)
+      return c.json({ error: 'sourceAccounts must be a non-empty array.' }, 400);
+    if (sourceAccounts.length > 10)
+      return c.json({ error: 'Too many source accounts (max 10).' }, 400);
     const geminiModel = c.env.GEMINI_MODEL;
     const gatewayConfig = { accountId: c.env.CF_ACCOUNT_ID, gateway: c.env.CF_GATEWAY_NAME, apiKey: c.env.CF_AIG_TOKEN };
     const tweetsByAccount = await fetchSourceTweets(sourceAccounts, bearerToken);
